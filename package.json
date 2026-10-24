@@ -1,0 +1,8 @@
+{
+  "name": "clocobi",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ]
+}
+
