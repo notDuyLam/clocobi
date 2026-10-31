@@ -3,7 +3,10 @@ import { PrismaClient } from './generated/prisma/client.js';
 import { PrismaNeon } from '@prisma/adapter-neon';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     const adapter = new PrismaNeon({
@@ -22,4 +25,3 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$disconnect();
   }
 }
-

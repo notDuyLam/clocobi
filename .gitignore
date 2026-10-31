@@ -41,3 +41,6 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 
+
+# Prisma client (generated on install and build)
+apps/api/src/generated/
