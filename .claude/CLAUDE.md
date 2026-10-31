@@ -41,7 +41,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 | Background removal | `@imgly/background-removal` (1.7.0), in the browser |
 | Hosting | Vercel Hobby (both Next.js and NestJS), personal use only |
 
-- Node: v24.20.0. Unverified: Vercel support for this Node version and how Vercel runs NestJS (deployment spike, TDD open item 8).
+- Node: v24.22.2 LTS (npm 11.19.1). Node 26 is also LTS but not used: Vercel support unverified. Unverified: Vercel support for Node 24 and how Vercel runs NestJS (deployment spike, TDD open item 8). Install dependencies with `npm ci` so the lockfile is not rewritten.
 - Install latest stable versions. Verify before relying on any version number in this file.
 - Tooling (TDD 3): Vitest in both apps (AI/Cloudflare mocked), oxlint (api), ESLint Next config (web), Prettier at the root (single quotes, trailing commas), Conventional Commits, no CI.
 
@@ -49,7 +49,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 - Connection URLs live in `prisma.config.ts`, not in `schema.prisma`. Driver adapter `@prisma/adapter-neon`. Generator `prisma-client`.
 - `DATABASE_URL` (pooled) for the app, `DIRECT_URL` for migrations.
 - Migrations: `prisma migrate dev` on the Neon `dev` branch; apply to `main` by hand with `prisma migrate deploy` before pushing. Never in the Vercel build.
-- Client generated at build time; `apps/api/src/generated/` is git-ignored (currently committed: fix during base setup).
+- Client generated at build time; `apps/api/src/generated/` is git-ignored (`postinstall` and `build` run `prisma generate`).
 - Physical names = DB document names (no `@map`). Ids: Prisma `uuid()`.
 
 ### Environment variables (TDD 10)
@@ -143,7 +143,7 @@ Field limits: `stylingTips` 600, `aiNote` 300, `size` 20, `brand` 60, `notes` 50
 
 ## 7. API summary
 
-Format: JSON, camelCase. No pagination in the MVP. Auth: `Authorization: Bearer <accessToken>` on everything except `POST /auth/login`, `POST /auth/refresh` and `GET /debug/slow`. A non-UUID id in a path → `404 NOT_FOUND`. No CORS on the backend.
+Format: JSON, camelCase. No pagination in the MVP. Auth: `Authorization: Bearer <accessToken>` on everything except `POST /auth/login`, `POST /auth/refresh`, `GET /health/db` and `GET /debug/slow`. A non-UUID id in a path → `404 NOT_FOUND`. No CORS on the backend.
 
 Tokens: access JWT 15 min (`expiresIn` in seconds). Frontend keeps it in memory only, calls refresh on page load, shares one refresh between parallel 401s. Refresh JWT 7 days in cookie `refresh_token` (`httpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`), a new cookie on each refresh. Stateless, logout only clears the cookie (AD1). No register endpoint; the account (`admin@email.com`) is created by the seed script. The password comes from `SEED_PASSWORD` when the seed runs, never committed; re-running the seed resets it.
 
@@ -160,7 +160,7 @@ Error body for every non-2xx:
 | Items | `POST /items/analyze`, `POST /items`, `GET /items`, `GET /items/summary`, `GET /items/:id`, `PATCH /items/:id`, `DELETE /items/:id` |
 | Occasions | `GET /occasions`, `POST /occasions`, `PATCH /occasions/:id`, `DELETE /occasions/:id` |
 | Outfits | `POST /occasions/:id/outfits/generate`, `GET /occasions/:id/outfits`, `GET /outfits?liked=true`, `GET /outfits/:id`, `PATCH /outfits/:id` (`{ liked }`), `DELETE /outfits/:id`, `DELETE /outfits/:id/items/:outfitItemId`, `POST /outfits/:id/image` |
-| Meta / dev | `GET /meta`, `GET /debug/slow?seconds=40` (no auth; `404` unless `DEBUG_ENDPOINTS=true`; `seconds` 1 to 290; temporary, AD11) |
+| Meta / dev | `GET /meta`, `GET /health/db` (no auth; `200 { ok: true }` after `SELECT 1`, AD12), `GET /debug/slow?seconds=40` (no auth; `404` unless `DEBUG_ENDPOINTS=true`; `seconds` 1 to 290; temporary, AD11) |
 
 Item endpoint details:
 - `POST /items/analyze`: body `originalPublicId`. Downloads the photo, calls `tagClothing`. Saves nothing. Returns `{ proposed }`. A value outside the lists becomes `null`, not an error. Photo not found in Cloudinary → `400 INVALID_PUBLIC_ID`.
@@ -312,16 +312,9 @@ These are tests and checks, not undecided design (TDD section 7):
 7. Gemini model choice and rate limits (TDD 15).
 8. Login has no brute-force protection. Add a throttle before other people use the app.
 
-Known code vs document gaps (fix during base setup):
-- `GET /debug/slow` in `apps/api/src/app.controller.ts` does not check `DEBUG_ENDPOINTS` or cap `seconds` (API 4.7).
-- `apps/api/src/generated/` is committed; should be git-ignored and generated at build (TDD 11).
-- Prettier config lives only in `apps/api`; move to the root (TDD 3).
-
----
-
 ## 13. Build order (from TDD section 8)
 
-1. Fix `GET /debug/slow` (gate + cap), deploy both apps, run the deployment spike.
+1. ~~Fix `GET /debug/slow` (gate + cap)~~ (done), deploy both apps, run the deployment spike.
 2. Reduce outfit image cost (test `flux-2-klein-4b`, smaller output).
 3. Spike: browser background removal on sample photos.
 4. Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format.
