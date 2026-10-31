@@ -3,10 +3,10 @@
 Web app: the user registers clothes from photos, views them by category, and generates outfits per occasion with AI. MVP, single user (the developer). Free tiers only, no paid billing.
 
 Source of truth (read before changing behaviour):
-- Software Requirements Specification (SRS) v0.6: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.8: stack, infrastructure, AI and image design
-- Database Design Document (DB) v0.5: tables, rules R1 to R10, decisions D1 to D9
-- API Design Document (API) v0.3: endpoints, errors, decisions AD1 to AD11
+- Software Requirements Specification (SRS) v0.7: what the app does (FR-xxx, NFR-xxx)
+- Technical Design Document (TDD) v0.11: stack, infrastructure, AI and image design
+- Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
+- API Design Document (API) v0.7: endpoints, errors, decisions AD1 to AD12
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -138,7 +138,7 @@ After the DB delete, the backend deletes Cloudinary files best-effort (AD2). Fai
 | skinUndertone | `Warm`, `Cool`, `Neutral` |
 | fitPreference | `Loose`, `Regular`, `Slim` |
 
-Free text, lowercased by the backend (not rejected): `subcategory` and `fabric` (up to 40 characters), `preferredStyles` (up to 10 values, each up to 30). Arrays have no repeats. Single source: backend constants served by `GET /meta`. The frontend forms, the validation, and the AI prompt must all use the same lists.
+Free text, lowercased by the backend (not rejected): `subcategory` and `fabric` (up to 40 characters), `preferredStyles` (up to 10 values, each up to 30). Arrays have no repeats: a repeat (checked after lowercasing) returns `400 VALIDATION_FAILED`, it is not removed silently. List values must match exactly, including case (`Menswear`, not `menswear`). Single source: backend constants served by `GET /meta`. The frontend forms, the validation, and the AI prompt must all use the same lists.
 
 Field limits: `stylingTips` 600, `aiNote` 300, `size` 20, `brand` 60, `notes` 500. Occasion `name` 1 to 60, `description` 1 to 300. Profile: `heightCm` integer 50 to 250, `weightKg` 20 to 300, `climate` up to 100, `freeNotes` up to 500.
 
@@ -265,7 +265,7 @@ interface ImageGenProvider {
 
 Gemini (text and vision):
 - REST `generateContent` via `fetch`, key in `x-goog-api-key`, JSON output with a response schema; still validate the parsed result. The item photo is downloaded from Cloudinary and sent inline.
-- Models are chosen after a test and kept in configuration (`GEMINI_MODEL_TAG`, `GEMINI_MODEL_RANK`). Candidates listed free: `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`. Per-model rate limits are not verified (see Google AI Studio).
+- Models live in configuration. Chosen after a test (2026-11-01, TDD 4.1): `GEMINI_MODEL_TAG=gemini-3.5-flash-lite` (5/5 photos, about 3.5 s), `GEMINI_MODEL_RANK=gemini-3.6-flash` (best outfit choices, about 10 s). `gemini-3.8-flash` failed every call that day (503 or timeout). Per-model rate limits are not verified (see Google AI Studio).
 - Key rotation across keys from separate Google Cloud projects (quota is per project). No stored state: each request starts at a random key. Only 429 moves to the next key. All keys 429 → `AI_QUOTA_EXHAUSTED`. Any other error (5xx, network, bad response) → `AI_FAILED` immediately; timeout → `AI_TIMEOUT`.
 - Timeouts (configuration): `tagClothing` 30 s, `rankOutfits` 90 s, Cloudflare 60 s, each backend Cloudinary fetch or upload 15 s.
 - Gemini is never used for images (free tier not available for image models).
@@ -312,7 +312,7 @@ These are tests and checks, not undecided design (TDD section 7):
 4. Cloudinary transformation cost on the free plan (TDD 12).
 5. Licences: `@imgly/background-removal` 1.7.0 and Black Forest Labs terms (TDD 13).
 6. Cloudflare quota error shape: record it on first hit, adjust the mapping (TDD 14).
-7. Gemini model choice and rate limits (TDD 15).
+7. ~~Gemini model choice~~ (done 2026-11-01). Gemini free rate limits per model still unchecked (TDD 15).
 8. Login has no brute-force protection. Add a throttle before other people use the app.
 
 ## 13. Build order (from TDD section 8)
@@ -320,8 +320,8 @@ These are tests and checks, not undecided design (TDD section 7):
 1. ~~Fix `GET /debug/slow` (gate + cap)~~ (done), deploy both apps, run the deployment spike.
 2. Reduce outfit image cost (test `flux-2-klein-4b`, smaller output).
 3. Spike: browser background removal on sample photos.
-4. Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format.
-5. API areas in order: meta, profile, uploads + items, occasions, outfits (generate), outfit image. Choose Gemini models before items.
+4. ~~Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format~~ (done).
+5. API areas in order: ~~meta, profile, uploads~~ (done), Gemini provider, items, occasions, outfits (generate), outfit image. Status per feature: [memory/project-status.md](memory/project-status.md).
 6. Frontend from the owner's wireframe.
 
 ---
