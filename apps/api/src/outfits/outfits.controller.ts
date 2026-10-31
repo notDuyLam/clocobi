@@ -11,7 +11,9 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { IMAGE_GEN, type ImageGenProvider } from '../ai/image-gen.provider.js';
 import { TEXT_AI, type TextAiProvider } from '../ai/text-ai.provider.js';
 import type { AuthedRequest } from '../auth/auth.guard.js';
 import { ApiError } from '../common/api-error.js';
@@ -29,6 +31,14 @@ import {
   repairSelections,
   sample,
 } from './candidates.js';
+import {
+  byReferenceOrder,
+  MAX_REFERENCES,
+  outfitPrompt,
+} from './image-prompt.js';
+
+// Cloudflare needs references smaller than 512x512 (TDD 4.3).
+const REFERENCE_TRANSFORM = 'c_limit,w_500,h_500';
 
 // API 3.3 item order; OUTERWEAR and ACCESSORY are the optional slots.
 const SLOT_ORDER: ItemCategory[] = [
@@ -75,6 +85,7 @@ export class OutfitsController {
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
     @Inject(TEXT_AI) private readonly ai: TextAiProvider,
+    @Inject(IMAGE_GEN) private readonly imageGen: ImageGenProvider,
   ) {}
 
   // API 3.3: URLs instead of public IDs, items in slot order, isIncomplete derived (DB D1).
@@ -211,6 +222,60 @@ export class OutfitsController {
       ...outfit,
       items: outfit.items.filter((i) => i !== row),
     });
+  }
+
+  // Image flow, API 4.6. On any failure the previous image stays.
+  @Post('outfits/:id/image')
+  @HttpCode(200)
+  async image(@Req() req: AuthedRequest, @Param('id') id: string) {
+    const { userId } = req;
+    const outfit = await this.find(userId, id);
+    if (this.toOutfit(outfit).isIncomplete) {
+      throw new ApiError(
+        409,
+        'OUTFIT_INCOMPLETE',
+        'This outfit is missing a required item, so no image can be made.',
+      );
+    }
+    const slotOf = new Map(
+      outfit.items.flatMap((i) => (i.itemId ? [[i.itemId, i.slot]] : [])),
+    );
+    const [items, profile] = await Promise.all([
+      this.prisma.item.findMany({
+        where: { id: { in: [...slotOf.keys()] }, userId },
+      }),
+      this.prisma.styleProfile.findUnique({
+        where: { userId },
+        select: { clothingCategory: true },
+      }),
+    ]);
+    const ordered = byReferenceOrder(
+      items.map((i) => ({ ...i, slot: slotOf.get(i.id)! })),
+    );
+    const references = await Promise.all(
+      ordered
+        .slice(0, MAX_REFERENCES)
+        .map((i) =>
+          this.cloudinary.download(
+            i.cleanPublicId ?? i.originalPublicId,
+            REFERENCE_TRANSFORM,
+          ),
+        ),
+    );
+    const image = await this.imageGen.generateOutfitImage(
+      references,
+      outfitPrompt(ordered, profile?.clothingCategory),
+    );
+    const publicId = `clocobi/${userId}/outfits/${randomUUID()}`;
+    await this.cloudinary.upload(publicId, image);
+    const updated = await this.prisma.outfit.update({
+      where: { id: outfit.id, userId },
+      data: { imagePublicId: publicId },
+      include: outfitInclude,
+    });
+    if (outfit.imagePublicId)
+      await this.cloudinary.destroy(outfit.imagePublicId);
+    return this.toOutfit(updated);
   }
 
   // Generate flow, API 4.6 steps 1 to 10.

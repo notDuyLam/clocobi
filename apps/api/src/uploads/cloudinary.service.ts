@@ -41,14 +41,15 @@ export class CloudinaryService {
     };
   }
 
-  // Display URL, no transformations (API section 2).
-  url(publicId: string) {
-    return `https://res.cloudinary.com/${env('CLOUDINARY_CLOUD_NAME')}/image/upload/${publicId}`;
+  // Display URL, no transformations (API section 2). A transformation only for AI references.
+  url(publicId: string, transformation?: string) {
+    const path = transformation ? `${transformation}/${publicId}` : publicId;
+    return `https://res.cloudinary.com/${env('CLOUDINARY_CLOUD_NAME')}/image/upload/${path}`;
   }
 
   // Photo bytes for AI analysis (TDD 4.1). A missing file is the caller's bad public ID.
-  async download(publicId: string) {
-    const res = await fetch(this.url(publicId), {
+  async download(publicId: string, transformation?: string) {
+    const res = await fetch(this.url(publicId, transformation), {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (res.status === 404) {
@@ -63,6 +64,33 @@ export class CloudinaryService {
       data: Buffer.from(await res.arrayBuffer()),
       mimeType: res.headers.get('content-type') ?? 'image/jpeg',
     };
+  }
+
+  // Signed upload from the backend (outfit images only, TDD 4.3). Failures throw (500).
+  async upload(publicId: string, data: Buffer) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const form = new FormData();
+    form.set('file', new Blob([new Uint8Array(data)]));
+    form.set('public_id', publicId);
+    form.set('timestamp', String(timestamp));
+    form.set('api_key', env('CLOUDINARY_API_KEY'));
+    form.set(
+      'signature',
+      signParams(
+        { public_id: publicId, timestamp },
+        env('CLOUDINARY_API_SECRET'),
+      ),
+    );
+    const res = await fetch(this.signUpload(publicId).uploadUrl, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Cloudinary upload of ${publicId} failed: ${res.status} ${(await res.text()).slice(0, 300)}`,
+      );
+    }
   }
 
   // Best-effort delete after a database delete (AD2): logs failures, never throws.

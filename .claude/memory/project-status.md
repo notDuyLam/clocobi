@@ -21,7 +21,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | done |
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | done |
 | 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | done |
-| 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | todo |
+| 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | done (live Cloudflare test pending: owner keys) |
 
 ## Frontend (needs the owner's wireframe first)
 
@@ -53,6 +53,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F10: Pure rules in `src/outfits/candidates.ts` (missing slots, candidates with R9 options, `comboKey`, sample, AD10 repair), unit-tested. Gemini `rankOutfits` uses aliases `i1..` for items and `c1..` for candidates; an unknown alias stays as is and the repair drops it. Each outfit is one Prisma `create` with nested `OutfitItem` rows (Prisma runs a nested write in one transaction), P2002 skipped. `MISSING_SLOTS` message lists the slots; `NO_NEW_COMBINATIONS` message is "Every outfit your wardrobe allows for this occasion already exists. Add items for new ones."
 - F10/11: Tested live 2026-11-01 (7 items, 4 combinations): first generate 3 outfits in about 13 s, all with blazer and watch for a walk outside (R10); second generate 1 outfit with `FEWER_THAN_REQUESTED`. `gemini-3.6-flash` returned HTTP 503 "high demand" twice before that (mapped to `AI_FAILED`, as designed).
 - F11: `DELETE /outfits/:id/items/:outfitItemId` uses `outfitItem.deleteMany` filtered through `outfit.userId` (DB D2). The outfit's `updatedAt` does not change when an optional item is removed.
+- F12: `IMAGE_GEN` → `CloudflareProvider` (in `AiModule`); `generateOutfitImage` returns the image bytes (`Buffer`). Reference images are sent as multipart file parts `input_image_0..3`: the Cloudflare model page does not document the format (checked 2026-11-01), so confirm on the first live call. Quota mapping: 429 or an error message matching daily/allowance/neuron/quota (open item 14). Prompt and reference order in `src/outfits/image-prompt.ts`; all garments are described in the prompt, the first 4 also go as references. References: `cleanPublicId` else original, through `c_limit,w_500,h_500`. Backend upload `CloudinaryService.upload()` and the reference transformation tested live 2026-11-01 (333x500 result). Profile missing at image time → "a person".
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
@@ -69,5 +70,5 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 ## Owner to-do
 
 - Spikes S1 (deploy) and S2 (image cost).
-- Cloudflare keys in `apps/api/.env` before feature 12 (Cloudinary and Gemini done; one Gemini key so far).
+- Cloudflare keys (`CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_IMAGE_MODEL`, `CF_IMAGE_WIDTH`, `CF_IMAGE_HEIGHT`) in `apps/api/.env`, then a live run of `POST /outfits/:id/image` (feature 12 code is done and mock-tested).
 - Wireframe before frontend features.
