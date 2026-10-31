@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.10, DB v0.6, API v0.6 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.10, DB v0.6, API v0.7 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -14,7 +14,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 2 | Database schema | Prisma schema from DB v0.5 (all tables, enums, indexes, cascades), first migration on Neon `dev`, remove `Ping` | done |
 | 3 | Auth | Seed script (`admin@email.com`, `SEED_PASSWORD`, argon2id), `POST /auth/login`, `/refresh`, `/logout`, JWT guard (global, with public routes), request validation setup | done |
 | 4 | Meta | Value-list constants (single source, `src/meta/values.ts`) and `GET /meta` (also returns `categories`, API v0.6) | done |
-| 5 | Profile | `GET /profile`, `PUT /profile` | todo |
+| 5 | Profile | `GET /profile`, `PUT /profile` | done |
 | 6 | Uploads | Cloudinary service (sign, URL build, backend upload, best-effort delete), `POST /uploads/sign` | todo |
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Model choice (TDD open item 15) by owner before this | todo |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | todo |
@@ -43,6 +43,8 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F2: `apps/api/.prettierignore` skips the generated client, so `npm run format` in `apps/api` is safe.
 - F3: Validation with `zod` through `ZodPipe` (`src/common/zod.pipe.ts`); `VALIDATION_FAILED` details are `{ fields }`. JWTs with `jose`, hashing with `@node-rs/argon2` (TDD 3).
 - F3: Global `AuthGuard` (APP_GUARD); mark open routes with `@Public()`. The guard sets `req.userId` (type `AuthedRequest`).
+- F5: Profile response omits `id` and `userId`. Repeated array values are rejected (400), not removed; `preferredStyles` is lowercased first. A color may be both liked and disliked (API v0.7, 3.5).
+- F5: Optional-text helpers (`blankToNull`, `optionalText`) live in `src/profile/profile.controller.ts`; move them to `src/common/` when items need them.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
