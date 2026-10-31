@@ -3,9 +3,15 @@ import { ApiError } from '../common/api-error.js';
 import { env } from '../common/env.js';
 import * as v from '../meta/values.js';
 import { generateJson } from './gemini.client.js';
-import type { ClothingTags, TextAiProvider } from './text-ai.provider.js';
+import type {
+  ClothingTags,
+  RankedOutfit,
+  RankInput,
+  TextAiProvider,
+} from './text-ai.provider.js';
 
 const TAG_TIMEOUT_MS = 30_000;
+const RANK_TIMEOUT_MS = 90_000;
 
 const oneOf = (values: readonly string[]) => ({ type: 'string', enum: values });
 const TAG_SCHEMA = {
@@ -74,6 +80,63 @@ export function toClothingTags(raw: unknown): ClothingTags {
   };
 }
 
+const RANK_SCHEMA = {
+  type: 'object',
+  properties: {
+    outfits: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          candidateId: { type: 'string' },
+          outerwearId: { type: 'string', nullable: true },
+          accessoryIds: { type: 'array', items: { type: 'string' } },
+          stylingTips: { type: 'string' },
+        },
+        required: ['candidateId', 'outerwearId', 'accessoryIds', 'stylingTips'],
+      },
+    },
+  },
+  required: ['outfits'],
+};
+
+const rankPrompt = (input: RankInput, data: object) =>
+  `You are a personal stylist. Choose outfits for the occasion below from the candidate list.
+Each candidate is a fixed set of required items. You never invent outfits or items.
+- Pick exactly ${input.count} different candidates, best first, that suit the occasion, the person's profile and each other (colors, formality, seasons).
+- For each, choose at most one outerwear id from that candidate's outerwearOptionIds, or null. When the occasion takes the person outside and an option exists, suggest one by default.
+- For each, choose 0 to ${input.maxAccessories} accessory ids from that candidate's accessoryOptionIds.
+- stylingTips: English, at most 500 characters, how to wear the outfit and why it suits the occasion. Use metric units.
+Use only the ids given below.
+
+${JSON.stringify(data)}`;
+
+// Turns the raw JSON into RankedOutfit[]; wrong types become values the repair step drops (AD10).
+export function toRankedOutfits(
+  raw: unknown,
+  itemIdOf: (alias: string) => string,
+): RankedOutfit[] {
+  const outfits = (raw as { outfits?: unknown } | null)?.outfits;
+  if (!Array.isArray(outfits)) {
+    throw new ApiError(
+      502,
+      'AI_FAILED',
+      'The AI service failed. Please try again.',
+    );
+  }
+  return outfits.map((o: Record<string, unknown> | null) => ({
+    candidateId: typeof o?.candidateId === 'string' ? o.candidateId : '',
+    outerwearId:
+      typeof o?.outerwearId === 'string' ? itemIdOf(o.outerwearId) : null,
+    accessoryIds: Array.isArray(o?.accessoryIds)
+      ? o.accessoryIds
+          .filter((a): a is string => typeof a === 'string')
+          .map(itemIdOf)
+      : [],
+    stylingTips: typeof o?.stylingTips === 'string' ? o.stylingTips : '',
+  }));
+}
+
 @Injectable()
 export class GeminiProvider implements TextAiProvider {
   async tagClothing(image: { data: Buffer; mimeType: string }) {
@@ -92,5 +155,31 @@ export class GeminiProvider implements TextAiProvider {
       TAG_TIMEOUT_MS,
     );
     return toClothingTags(raw);
+  }
+
+  async rankOutfits(input: RankInput) {
+    // Short aliases (i1, i2...) instead of UUIDs save tokens (TDD 4.1).
+    const alias = new Map(input.items.map((it, i) => [it.id, `i${i + 1}`]));
+    const back = new Map([...alias].map(([id, a]) => [a, id]));
+    const a = (id: string) => alias.get(id) ?? id;
+    const data = {
+      occasion: input.occasion,
+      profile: input.profile,
+      items: input.items.map((it) => ({ ...it, id: a(it.id) })),
+      candidates: input.candidates.map((c) => ({
+        id: c.id,
+        requiredItemIds: c.requiredItemIds.map(a),
+        outerwearOptionIds: c.outerwearOptionIds.map(a),
+        accessoryOptionIds: c.accessoryOptionIds.map(a),
+      })),
+    };
+    const raw = await generateJson(
+      env('GEMINI_MODEL_RANK'),
+      [{ text: rankPrompt(input, data) }],
+      RANK_SCHEMA,
+      RANK_TIMEOUT_MS,
+    );
+    // An unknown alias stays as is, so it matches no option and is removed.
+    return toRankedOutfits(raw, (x) => back.get(x) ?? x);
   }
 }

@@ -19,8 +19,8 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | done |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | done |
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | done |
-| 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | todo |
-| 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | todo |
+| 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | done |
+| 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | done |
 | 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | todo |
 
 ## Frontend (needs the owner's wireframe first)
@@ -50,6 +50,9 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F8: Shared zod helpers and `uuidOr404()` live in `src/common/fields.ts` (moved from profile). `uniqueList` has no default, so `.partial()` PATCH schemas leave omitted fields unchanged; add `.default([])` where a full body needs it.
 - F8: Public IDs must match `clocobi/{userId}/items/{original|clean}/<one segment>` exactly, so `../` cannot escape the folder (the URL parser would resolve it on download). `PATCH cleanPublicId` takes a string only (no clearing). Cloudinary download failures other than 404 (5xx, timeout) are `500 INTERNAL_ERROR`. Cloudinary deletes are awaited before the response (serverless may freeze after it). `GET /items/summary` counts in memory from one query (`shortcut:` comment).
 - F8: Tested live 2026-11-01: sign, upload, analyze (about 4.3 s), create, list, summary, 409 on COMPLETE to DRAFT, delete (204, then 404).
+- F10: Pure rules in `src/outfits/candidates.ts` (missing slots, candidates with R9 options, `comboKey`, sample, AD10 repair), unit-tested. Gemini `rankOutfits` uses aliases `i1..` for items and `c1..` for candidates; an unknown alias stays as is and the repair drops it. Each outfit is one Prisma `create` with nested `OutfitItem` rows (Prisma runs a nested write in one transaction), P2002 skipped. `MISSING_SLOTS` message lists the slots; `NO_NEW_COMBINATIONS` message is "Every outfit your wardrobe allows for this occasion already exists. Add items for new ones."
+- F10/11: Tested live 2026-11-01 (7 items, 4 combinations): first generate 3 outfits in about 13 s, all with blazer and watch for a walk outside (R10); second generate 1 outfit with `FEWER_THAN_REQUESTED`. `gemini-3.6-flash` returned HTTP 503 "high demand" twice before that (mapped to `AI_FAILED`, as designed).
+- F11: `DELETE /outfits/:id/items/:outfitItemId` uses `outfitItem.deleteMany` filtered through `outfit.userId` (DB D2). The outfit's `updatedAt` does not change when an optional item is removed.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
