@@ -18,7 +18,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 6 | Uploads | Cloudinary service (sign, URL build, best-effort delete), `POST /uploads/sign`. Backend upload moved to feature 12 (only outfit images need it) | done |
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | done |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | done |
-| 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | todo |
+| 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | done |
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | todo |
 | 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | todo |
 | 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | todo |
