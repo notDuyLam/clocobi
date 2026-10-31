@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.10, DB v0.6, API v0.7 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.11, DB v0.6, API v0.7 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -16,7 +16,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 4 | Meta | Value-list constants (single source, `src/meta/values.ts`) and `GET /meta` (also returns `categories`, API v0.6) | done |
 | 5 | Profile | `GET /profile`, `PUT /profile` | done |
 | 6 | Uploads | Cloudinary service (sign, URL build, best-effort delete), `POST /uploads/sign`. Backend upload moved to feature 12 (only outfit images need it) | done |
-| 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Model choice (TDD open item 15) by owner before this | todo |
+| 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | todo |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | todo |
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | todo |
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | todo |
@@ -55,13 +55,12 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
 | Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
-| Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini and Cloudflare keys not yet. |
+| Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: one key plus both model names (2026-11-01). Cloudflare keys not yet. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
 | Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. |
 
 ## Owner to-do
 
 - Spikes S1 (deploy) and S2 (image cost).
-- Gemini model choice (TDD open item 15) before feature 7.
-- Gemini and Cloudflare keys in `apps/api/.env` before features 7 and 12 (Cloudinary done).
+- Cloudflare keys in `apps/api/.env` before feature 12 (Cloudinary and Gemini done; one Gemini key so far).
 - Wireframe before frontend features.

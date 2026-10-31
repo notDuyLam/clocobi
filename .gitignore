@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Prisma client (generated on install and build)
 apps/api/src/generated/
+
+# Local sample photos from the internet (unknown licence), used for manual AI tests only
+assests/
