@@ -4,9 +4,9 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.7: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.12: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.13: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
-- API Design Document (API) v0.7: endpoints, errors, decisions AD1 to AD12
+- API Design Document (API) v0.8: endpoints, errors, decisions AD1 to AD12
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -96,7 +96,7 @@ Entities: `User`, `StyleProfile`, `Item`, `Occasion`, `Outfit`, `OutfitItem`.
 | Outfit | Cascade to its `OutfitItem` rows |
 | Item | `OutfitItem.itemId` set to `NULL`; slot is kept |
 
-After the DB delete, the backend deletes Cloudinary files best-effort (AD2). Failures are logged, never shown to the user.
+After the DB delete, the backend deletes Cloudinary files best-effort (AD2). Failures are logged, never shown to the user. `not found` counts as success. The CDN may serve a deleted URL for a while (no invalidation, accepted).
 
 ### Indexes
 - `Item(userId, status, category)`, `Item(userId, liked)`, unique `Item(originalPublicId)`, unique `Item(cleanPublicId)`
@@ -166,7 +166,7 @@ Error body for every non-2xx:
 | Meta / dev | `GET /meta`, `GET /health/db` (no auth; `200 { ok: true }` after `SELECT 1`, AD12), `GET /debug/slow?seconds=40` (no auth; `404` unless `DEBUG_ENDPOINTS=true`; `seconds` 1 to 290; temporary, AD11) |
 
 Item endpoint details:
-- `POST /items/analyze`: body `originalPublicId`. Downloads the photo, calls `tagClothing`. Saves nothing. Returns `{ proposed }`. A value outside the lists becomes `null`, not an error. Photo not found in Cloudinary → `400 INVALID_PUBLIC_ID`.
+- `POST /items/analyze`: body `originalPublicId`. Downloads the photo, calls `tagClothing`. Saves nothing. Returns `{ proposed }`. A value outside the lists becomes `null`, not an error. Too-long text is cut (`subcategory`/`fabric` 40, `aiNote` 300), not rejected. Photo not found in Cloudinary → `400 INVALID_PUBLIC_ID`.
 - `POST /items`: `originalPublicId` required; `cleanPublicId`, `status` (default `COMPLETE`), attributes, `liked`. Returns `201`.
 - `GET /items`: query `status` (`COMPLETE` default or `DRAFT`), `category`, `liked=true`. With `liked=true` and no `status`, both statuses are returned; the frontend marks drafts. Newest first. Returns `{ items }`.
 - `GET /items/summary`: `{ counts, drafts, liked }`. `counts` has all 6 categories (0 if empty) and counts `COMPLETE` only. `liked` counts both statuses.
