@@ -2,23 +2,10 @@ import { Body, Controller, Get, Put, Req } from '@nestjs/common';
 import { z } from 'zod';
 import type { AuthedRequest } from '../auth/auth.guard.js';
 import { ApiError } from '../common/api-error.js';
+import { optionalEnum, optionalText, uniqueList } from '../common/fields.js';
 import { ZodPipe } from '../common/zod.pipe.js';
 import { PrismaService } from '../prisma.service.js';
 import * as v from '../meta/values.js';
-
-// Omitted, null or "" (after trim) becomes null (API section 2).
-const blankToNull = (s: unknown) =>
-  s == null || (typeof s === 'string' && s.trim() === '') ? null : s;
-const optionalText = (max: number) =>
-  z.preprocess(blankToNull, z.string().trim().max(max).nullable());
-const optionalEnum = (values: readonly [string, ...string[]]) =>
-  z.preprocess(blankToNull, z.enum(values).nullable());
-const uniqueList = <T extends z.ZodType>(item: T, max = Infinity) =>
-  z
-    .array(item)
-    .max(max)
-    .refine((a) => new Set(a).size === a.length, 'Values must not repeat.')
-    .default([]);
 
 // Full body of PUT /profile (API section 3.5). Omitted optional fields are cleared.
 const profileSchema = z.object({
@@ -31,9 +18,9 @@ const profileSchema = z.object({
   preferredStyles: uniqueList(
     z.string().trim().toLowerCase().min(1).max(30),
     10,
-  ),
-  likedColors: uniqueList(z.enum(v.COLORS)),
-  dislikedColors: uniqueList(z.enum(v.COLORS)),
+  ).default([]),
+  likedColors: uniqueList(z.enum(v.COLORS)).default([]),
+  dislikedColors: uniqueList(z.enum(v.COLORS)).default([]),
   fitPreference: optionalEnum(v.FIT_PREFERENCE),
   freeNotes: optionalText(500),
 });

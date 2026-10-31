@@ -17,7 +17,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 5 | Profile | `GET /profile`, `PUT /profile` | done |
 | 6 | Uploads | Cloudinary service (sign, URL build, best-effort delete), `POST /uploads/sign`. Backend upload moved to feature 12 (only outfit images need it) | done |
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | done |
-| 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | todo |
+| 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | done |
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | todo |
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | todo |
 | 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | todo |
@@ -47,6 +47,9 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F5: Optional-text helpers (`blankToNull`, `optionalText`) live in `src/profile/profile.controller.ts`; move them to `src/common/` when items need them.
 - F6: `CloudinaryService` (`src/uploads/cloudinary.service.ts`, exported by `UploadsModule`) uses `fetch` + `node:crypto`, no SDK. Tested against the real account 2026-11-01: signed upload OK, tampered `public_id` rejected, destroy removes the file. A deleted file's URL can still load from the CDN cache for a while (no `invalidate`, accepted).
 - F7: `src/ai/`: `TEXT_AI` token → `GeminiProvider` (exported by `AiModule`). `generateJson()` in `gemini.client.ts` does rotation and error mapping with one deadline per call; `rankOutfits` (feature 10) reuses it. `tagClothing` takes bytes (TDD v0.12); feature 8 adds `CloudinaryService.download()` (15 s, 404 → `INVALID_PUBLIC_ID`). `env()` helper in `src/common/env.ts`. Tested live 2026-11-01 with 2 keys.
+- F8: Shared zod helpers and `uuidOr404()` live in `src/common/fields.ts` (moved from profile). `uniqueList` has no default, so `.partial()` PATCH schemas leave omitted fields unchanged; add `.default([])` where a full body needs it.
+- F8: Public IDs must match `clocobi/{userId}/items/{original|clean}/<one segment>` exactly, so `../` cannot escape the folder (the URL parser would resolve it on download). `PATCH cleanPublicId` takes a string only (no clearing). Cloudinary download failures other than 404 (5xx, timeout) are `500 INTERNAL_ERROR`. Cloudinary deletes are awaited before the response (serverless may freeze after it). `GET /items/summary` counts in memory from one query (`shortcut:` comment).
+- F8: Tested live 2026-11-01: sign, upload, analyze (about 4.3 s), create, list, summary, 409 on COMPLETE to DRAFT, delete (204, then 404).
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status

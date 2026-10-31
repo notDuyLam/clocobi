@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { ApiError } from '../common/api-error.js';
 import { env } from '../common/env.js';
 
 // Timeout for each backend call to Cloudinary (TDD section 4.1).
@@ -43,6 +44,25 @@ export class CloudinaryService {
   // Display URL, no transformations (API section 2).
   url(publicId: string) {
     return `https://res.cloudinary.com/${env('CLOUDINARY_CLOUD_NAME')}/image/upload/${publicId}`;
+  }
+
+  // Photo bytes for AI analysis (TDD 4.1). A missing file is the caller's bad public ID.
+  async download(publicId: string) {
+    const res = await fetch(this.url(publicId), {
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (res.status === 404) {
+      throw new ApiError(400, 'INVALID_PUBLIC_ID', 'Photo not found.');
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Cloudinary download of ${publicId} failed: ${res.status}`,
+      );
+    }
+    return {
+      data: Buffer.from(await res.arrayBuffer()),
+      mimeType: res.headers.get('content-type') ?? 'image/jpeg',
+    };
   }
 
   // Best-effort delete after a database delete (AD2): logs failures, never throws.
