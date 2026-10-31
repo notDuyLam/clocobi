@@ -17,11 +17,9 @@ export class ErrorFilter implements ExceptionFilter {
     const res = host.switchToHttp().getResponse<Response>();
     const { status, code, message, details } = toError(exception);
     if (status === 500) this.logger.error(exception);
-    res
-      .status(status)
-      .json({
-        error: details ? { code, message, details } : { code, message },
-      });
+    res.status(status).json({
+      error: details ? { code, message, details } : { code, message },
+    });
   }
 }
 

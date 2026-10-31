@@ -1,3 +1,5 @@
+// Source of truth: Database Design Document v0.5. Names are physical names (no @map).
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -7,6 +9,121 @@ datasource db {
   provider = "postgresql"
 }
 
-model Ping {
-  id Int @id @default(autoincrement())
+enum ItemCategory {
+  TOP
+  BOTTOM
+  OUTERWEAR
+  ONE_PIECE
+  SHOES
+  ACCESSORY
+}
+
+enum ItemStatus {
+  DRAFT
+  COMPLETE
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  profile      StyleProfile?
+  items        Item[]
+  occasions    Occasion[]
+  outfits      Outfit[]
+}
+
+model StyleProfile {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @db.Uuid
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clothingCategory String
+  heightCm         Int
+  weightKg         Float
+  climate          String
+  build            String?
+  skinUndertone    String?
+  preferredStyles  String[] @default([])
+  likedColors      String[] @default([])
+  dislikedColors   String[] @default([])
+  fitPreference    String?
+  freeNotes        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Item {
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @db.Uuid
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status           ItemStatus    @default(COMPLETE)
+  category         ItemCategory?
+  subcategory      String?
+  primaryColor     String?
+  secondaryColor   String?
+  pattern          String?
+  fabric           String?
+  fit              String?
+  seasons          String[]      @default([])
+  formality        String?
+  aiNote           String?
+  size             String?
+  brand            String?
+  notes            String?
+  liked            Boolean       @default(false)
+  originalPublicId String        @unique
+  cleanPublicId    String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  outfitItems      OutfitItem[]
+
+  @@index([userId, status, category])
+  @@index([userId, liked])
+}
+
+model Occasion {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  outfits     Outfit[]
+
+  @@index([userId])
+}
+
+model Outfit {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @db.Uuid
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occasionId    String       @db.Uuid
+  occasion      Occasion     @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  comboKey      String
+  stylingTips   String
+  liked         Boolean      @default(false)
+  imagePublicId String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         OutfitItem[]
+
+  @@unique([occasionId, comboKey])
+  @@index([occasionId, createdAt])
+  @@index([userId, liked])
+}
+
+// No userId and no timestamps: always reached through Outfit (DB D2), only created and deleted.
+model OutfitItem {
+  id       String       @id @default(uuid()) @db.Uuid
+  outfitId String       @db.Uuid
+  outfit   Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  itemId   String?      @db.Uuid
+  item     Item?        @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  slot     ItemCategory
+
+  @@index([outfitId])
+  @@index([itemId])
 }
