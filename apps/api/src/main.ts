@@ -1,3 +1,5 @@
+// Loads apps/api/.env locally; on Vercel the variables come from the project settings.
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 

@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
+import { AuthModule } from './auth/auth.module.js';
 import { ErrorFilter } from './common/error.filter.js';
 import { DebugController } from './debug.controller.js';
 import { HealthController } from './health.controller.js';
-import { PrismaService } from './prisma.service.js';
+import { PrismaModule } from './prisma.module.js';
 
 @Module({
-  imports: [],
+  imports: [PrismaModule, AuthModule],
   controllers: [DebugController, HealthController],
-  providers: [PrismaService, { provide: APP_FILTER, useClass: ErrorFilter }],
-  exports: [PrismaService],
+  providers: [{ provide: APP_FILTER, useClass: ErrorFilter }],
 })
 export class AppModule {}

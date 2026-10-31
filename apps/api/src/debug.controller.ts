@@ -1,7 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { Public } from './auth/public.decorator.js';
 import { ApiError } from './common/api-error.js';
 
 // Temporary: tests the Vercel and proxy time limit (TDD open item 8, API AD11). Remove after the spike.
+@Public()
 @Controller('debug')
 export class DebugController {
   @Get('slow')
