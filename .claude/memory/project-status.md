@@ -15,7 +15,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 3 | Auth | Seed script (`admin@email.com`, `SEED_PASSWORD`, argon2id), `POST /auth/login`, `/refresh`, `/logout`, JWT guard (global, with public routes), request validation setup | done |
 | 4 | Meta | Value-list constants (single source, `src/meta/values.ts`) and `GET /meta` (also returns `categories`, API v0.6) | done |
 | 5 | Profile | `GET /profile`, `PUT /profile` | done |
-| 6 | Uploads | Cloudinary service (sign, URL build, backend upload, best-effort delete), `POST /uploads/sign` | todo |
+| 6 | Uploads | Cloudinary service (sign, URL build, best-effort delete), `POST /uploads/sign`. Backend upload moved to feature 12 (only outfit images need it) | done |
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Model choice (TDD open item 15) by owner before this | todo |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | todo |
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | todo |
@@ -45,6 +45,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F3: Global `AuthGuard` (APP_GUARD); mark open routes with `@Public()`. The guard sets `req.userId` (type `AuthedRequest`).
 - F5: Profile response omits `id` and `userId`. Repeated array values are rejected (400), not removed; `preferredStyles` is lowercased first. A color may be both liked and disliked (API v0.7, 3.5).
 - F5: Optional-text helpers (`blankToNull`, `optionalText`) live in `src/profile/profile.controller.ts`; move them to `src/common/` when items need them.
+- F6: `CloudinaryService` (`src/uploads/cloudinary.service.ts`, exported by `UploadsModule`) uses `fetch` + `node:crypto`, no SDK. Tested against the real account 2026-11-01: signed upload OK, tampered `public_id` rejected, destroy removes the file. A deleted file's URL can still load from the CDN cache for a while (no `invalidate`, accepted).
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
@@ -54,6 +55,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
 | Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
+| Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini and Cloudflare keys not yet. |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
 | Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. |
 
@@ -61,5 +63,5 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 
 - Spikes S1 (deploy) and S2 (image cost).
 - Gemini model choice (TDD open item 15) before feature 7.
-- Cloudinary, Gemini and Cloudflare keys in `apps/api/.env` before features 6, 7 and 12.
+- Gemini and Cloudflare keys in `apps/api/.env` before features 7 and 12 (Cloudinary done).
 - Wireframe before frontend features.

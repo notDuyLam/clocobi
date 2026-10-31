@@ -7,9 +7,10 @@ import { HealthController } from './health.controller.js';
 import { MetaModule } from './meta/meta.module.js';
 import { PrismaModule } from './prisma.module.js';
 import { ProfileModule } from './profile/profile.module.js';
+import { UploadsModule } from './uploads/uploads.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, MetaModule, ProfileModule],
+  imports: [PrismaModule, AuthModule, MetaModule, ProfileModule, UploadsModule],
   controllers: [DebugController, HealthController],
   providers: [{ provide: APP_FILTER, useClass: ErrorFilter }],
 })
