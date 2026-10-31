@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.11, DB v0.6, API v0.7 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.12, DB v0.6, API v0.7 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -16,7 +16,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 4 | Meta | Value-list constants (single source, `src/meta/values.ts`) and `GET /meta` (also returns `categories`, API v0.6) | done |
 | 5 | Profile | `GET /profile`, `PUT /profile` | done |
 | 6 | Uploads | Cloudinary service (sign, URL build, best-effort delete), `POST /uploads/sign`. Backend upload moved to feature 12 (only outfit images need it) | done |
-| 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | todo |
+| 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Models chosen 2026-11-01 (TDD v0.11 4.1): tag `gemini-3.5-flash-lite`, rank `gemini-3.6-flash` | done |
 | 8 | Items | `POST /items/analyze`, CRUD, summary, R1, public ID checks, Cloudinary cleanup | todo |
 | 9 | Occasions | CRUD with `outfitCount`, cascade + image cleanup | todo |
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | todo |
@@ -46,6 +46,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F5: Profile response omits `id` and `userId`. Repeated array values are rejected (400), not removed; `preferredStyles` is lowercased first. A color may be both liked and disliked (API v0.7, 3.5).
 - F5: Optional-text helpers (`blankToNull`, `optionalText`) live in `src/profile/profile.controller.ts`; move them to `src/common/` when items need them.
 - F6: `CloudinaryService` (`src/uploads/cloudinary.service.ts`, exported by `UploadsModule`) uses `fetch` + `node:crypto`, no SDK. Tested against the real account 2026-11-01: signed upload OK, tampered `public_id` rejected, destroy removes the file. A deleted file's URL can still load from the CDN cache for a while (no `invalidate`, accepted).
+- F7: `src/ai/`: `TEXT_AI` token → `GeminiProvider` (exported by `AiModule`). `generateJson()` in `gemini.client.ts` does rotation and error mapping with one deadline per call; `rankOutfits` (feature 10) reuses it. `tagClothing` takes bytes (TDD v0.12); feature 8 adds `CloudinaryService.download()` (15 s, 404 → `INVALID_PUBLIC_ID`). `env()` helper in `src/common/env.ts`. Tested live 2026-11-01 with 2 keys.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
@@ -55,7 +56,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
 | Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
-| Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: one key plus both model names (2026-11-01). Cloudflare keys not yet. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
+| Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: 2 keys plus both model names (2026-11-01). Cloudflare keys not yet. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
 | Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. |
 

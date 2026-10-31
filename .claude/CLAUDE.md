@@ -4,7 +4,7 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.7: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.11: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.12: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
 - API Design Document (API) v0.7: endpoints, errors, decisions AD1 to AD12
 
@@ -250,7 +250,7 @@ Two interfaces, so the provider can change without touching business logic (NFR-
 
 ```ts
 interface TextAiProvider {
-  tagClothing(imageUrl: string): Promise<ClothingTags>; // includes the AI note
+  tagClothing(image: { data: Buffer; mimeType: string }): Promise<ClothingTags>; // includes the AI note; caller downloads the photo
   rankOutfits(input: RankInput): Promise<RankedOutfit[]>;
 }
 // RankInput: occasion { name, description }, full profile, items (sent once), candidates

@@ -1,14 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { env } from '../common/env.js';
 
 // Timeout for each backend call to Cloudinary (TDD section 4.1).
 const TIMEOUT_MS = 15_000;
-
-function env(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set`);
-  return value;
-}
 
 // Cloudinary signature: params sorted by name, joined as k=v with &, then the API secret, SHA-1 hex.
 export function signParams(
