@@ -8,6 +8,8 @@ Source of truth (read before changing behaviour):
 - Database Design Document (DB) v0.5: tables, rules R1 to R10, decisions D1 to D9
 - API Design Document (API) v0.3: endpoints, errors, decisions AD1 to AD11
 
+Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
+
 If code and these documents disagree, stop and ask. Do not silently change a contract. If a change is approved, update the affected document and its version table in the same piece of work.
 
 ---
@@ -32,7 +34,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 | Monorepo | npm workspaces: `apps/web` (Next.js), `apps/api` (NestJS). Commit `package-lock.json`. |
 | Frontend | Next.js 16.4.3 + React 19.3 + TypeScript |
 | Backend | NestJS 12.0.x + TypeScript, ES module (`"type": "module"`) |
-| Database | PostgreSQL on Neon, free plan (0.5 GB, scale-to-zero after 5 min idle). Branches: `main` (deployed), `dev` (local) |
+| Database | PostgreSQL on Neon, free plan (1 GB, 100 compute-hours/month, 10 branches, scale-to-zero after 5 min idle). Branches: `main` (deployed, default), `dev` (local, in `apps/api/.env`) |
 | ORM | Prisma 7.10.x + `@prisma/adapter-neon` |
 | Auth | JWT HS256 (email + password), argon2id hashes |
 | Image storage | Cloudinary, free plan (25 credits/month) |
@@ -44,6 +46,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 - Node: v24.22.2 LTS (npm 11.19.1). Node 26 is also LTS but not used: Vercel support unverified. Unverified: Vercel support for Node 24 and how Vercel runs NestJS (deployment spike, TDD open item 8). Install dependencies with `npm ci` so the lockfile is not rewritten.
 - Install latest stable versions. Verify before relying on any version number in this file.
 - Tooling (TDD 3): Vitest in both apps (AI/Cloudflare mocked), oxlint (api), ESLint Next config (web), Prettier at the root (single quotes, trailing commas), Conventional Commits, no CI.
+- Backend libraries (TDD 3): `zod` (validation via `ZodPipe`), `jose` (JWT), `@node-rs/argon2` (argon2id). Global `AuthGuard`; open routes use `@Public()`.
 
 ### Prisma 7 notes
 - Connection URLs live in `prisma.config.ts`, not in `schema.prisma`. Driver adapter `@prisma/adapter-neon`. Generator `prisma-client`.
@@ -145,7 +148,7 @@ Field limits: `stylingTips` 600, `aiNote` 300, `size` 20, `brand` 60, `notes` 50
 
 Format: JSON, camelCase. No pagination in the MVP. Auth: `Authorization: Bearer <accessToken>` on everything except `POST /auth/login`, `POST /auth/refresh`, `GET /health/db` and `GET /debug/slow`. A non-UUID id in a path → `404 NOT_FOUND`. No CORS on the backend.
 
-Tokens: access JWT 15 min (`expiresIn` in seconds). Frontend keeps it in memory only, calls refresh on page load, shares one refresh between parallel 401s. Refresh JWT 7 days in cookie `refresh_token` (`httpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`), a new cookie on each refresh. Stateless, logout only clears the cookie (AD1). No register endpoint; the account (`admin@email.com`) is created by the seed script. The password comes from `SEED_PASSWORD` when the seed runs, never committed; re-running the seed resets it.
+Tokens: access JWT 15 min (`expiresIn` in seconds). Frontend keeps it in memory only, calls refresh on page load, shares one refresh between parallel 401s. Refresh JWT 7 days in cookie `refresh_token` (`httpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`), a new cookie on each refresh. Stateless, logout only clears the cookie (AD1). No register endpoint; the account (`admin@email.com`) is created by the seed script (`npm run seed` in `apps/api`). The password comes from `SEED_PASSWORD` when the seed runs, never committed; re-running the seed resets it.
 
 Error body for every non-2xx:
 ```json
