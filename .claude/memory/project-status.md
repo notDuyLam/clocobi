@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.10, DB v0.6, API v0.5 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.10, DB v0.6, API v0.6 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -13,7 +13,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | S2 | Outfit image cost | Test `flux-2-klein-4b` and smaller sizes (TDD open item 10) | owner |
 | 2 | Database schema | Prisma schema from DB v0.5 (all tables, enums, indexes, cascades), first migration on Neon `dev`, remove `Ping` | done |
 | 3 | Auth | Seed script (`admin@email.com`, `SEED_PASSWORD`, argon2id), `POST /auth/login`, `/refresh`, `/logout`, JWT guard (global, with public routes), request validation setup | done |
-| 4 | Meta | Value-list constants (single source) and `GET /meta` | todo |
+| 4 | Meta | Value-list constants (single source, `src/meta/values.ts`) and `GET /meta` (also returns `categories`, API v0.6) | done |
 | 5 | Profile | `GET /profile`, `PUT /profile` | todo |
 | 6 | Uploads | Cloudinary service (sign, URL build, backend upload, best-effort delete), `POST /uploads/sign` | todo |
 | 7 | Gemini provider | `TextAiProvider` over REST with key rotation, timeouts and error mapping; `tagClothing`. Model choice (TDD open item 15) by owner before this | todo |
