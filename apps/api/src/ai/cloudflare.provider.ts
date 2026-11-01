@@ -48,7 +48,7 @@ export class CloudflareProvider implements ImageGenProvider {
     form.set('width', env('CF_IMAGE_WIDTH'));
     form.set('height', env('CF_IMAGE_HEIGHT'));
     form.set('seed', String(Math.floor(Math.random() * 2 ** 31)));
-    // shortcut: references sent as file parts; Cloudflare docs do not show the format, confirm on the first live test.
+    // References as binary file parts (confirmed live 2026-11-01).
     references
       .slice(0, 4)
       .forEach((r, i) =>

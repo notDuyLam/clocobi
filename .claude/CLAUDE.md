@@ -3,8 +3,8 @@
 Web app: the user registers clothes from photos, views them by category, and generates outfits per occasion with AI. MVP, single user (the developer). Free tiers only, no paid billing.
 
 Source of truth (read before changing behaviour):
-- Software Requirements Specification (SRS) v0.7: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.14: stack, infrastructure, AI and image design
+- Software Requirements Specification (SRS) v0.8: what the app does (FR-xxx, NFR-xxx)
+- Technical Design Document (TDD) v0.15: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
 - API Design Document (API) v0.9: endpoints, errors, decisions AD1 to AD12
 
@@ -39,7 +39,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 | Auth | JWT HS256 (email + password), argon2id hashes |
 | Image storage | Cloudinary, free plan (25 credits/month) |
 | Text and vision AI | Gemini API (REST via `fetch`, no SDK), free tier, rotation over several keys |
-| Outfit image generation | Cloudflare Workers AI `@cf/black-forest-labs/flux-2-klein-9b`, free allowance 10,000 neurons/day |
+| Outfit image generation | Cloudflare Workers AI `@cf/black-forest-labs/flux-2-klein-4b`, free allowance 10,000 neurons/day |
 | Background removal | `@imgly/background-removal` (1.7.0), in the browser |
 | Hosting | Vercel Hobby (both Next.js and NestJS), personal use only |
 
@@ -68,7 +68,7 @@ Next.js rewrites `/api/:path*` to `${BACKEND_URL}/:path*`. The frontend always c
 1. Vercel rejects function request bodies over 4.5 MB (HTTP 413). Photos never pass through NestJS (NFR-007). The browser uploads to Cloudinary directly with a signed upload.
 2. NestJS runs serverless on Vercel: no background workers, no in-process cron, no queues. Each AI action finishes inside one request (NFR-004, AD8).
 3. Hobby function duration: 300 s with Fluid Compute (verify it is enabled in Project Settings → Functions). Whether the Next.js proxy adds its own limit is unverified: test with `GET /debug/slow?seconds=40` (TDD open item 8). Remove that endpoint afterwards.
-4. Free tiers only. Gemini free tier has no image generation. Cloudflare image generation costs about 1,400 to 1,500 neurons per image (about 6 to 7 images per day).
+4. Free tiers only. Gemini free tier has no image generation. Cloudflare image generation with `flux-2-klein-4b` costs about 95 to 125 neurons per image by the listed prices (about 80 images per day; `flux-2-klein-9b` was about 1,500).
 5. Every user-data query filters by `userId` (NFR-006). Another user's id returns `404 NOT_FOUND`, the same as a missing id. `OutfitItem` has no `userId` and is always reached through its `Outfit` (DB D2).
 6. Secrets (Cloudflare token, Gemini keys, JWT secrets, Cloudinary API secret) live only in server environment variables. Never in the frontend or the repository.
 7. UI and AI output are English. Units are metric (cm, kg).
@@ -273,10 +273,10 @@ Gemini (text and vision):
 
 Cloudflare Workers AI (images):
 - Endpoint: `https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/run/{model}`, header `Authorization: Bearer {API_TOKEN}` (token needs `Workers AI - Read` and `Workers AI - Edit`).
-- `flux-2-klein-9b`: multipart form data (use `fetch` + `FormData`, no SDK). Fields: `prompt`, `width`, `height` (256 to 1920), `seed`, `input_image_0` to `input_image_3`. `steps` fixed at 4. Output is a base64 string in `image`.
+- `flux-2-klein-4b` (used since 2026-11-01, TDD 4.3) and `flux-2-klein-9b` (fallback, same format): multipart form data (use `fetch` + `FormData`, no SDK). Fields: `prompt`, `width`, `height` (256 to 1920), `seed`, `input_image_0` to `input_image_3`. `steps` fixed at 4. Output is a base64 string in `image`.
 - Model name, width, and height are configuration. Allowance resets at 00:00 UTC. The exact quota error shape is unverified.
-- Reference images are sent as multipart file parts (`input_image_N`); the docs do not show the format, so it is unverified until the first live call (TDD open item 16).
-- Untested alternatives: `flux-2-klein-4b` (reference-image support unverified), `flux-2-dev`. Rejected: `flux-1-schnell` (no references, NSFW false positive).
+- Reference images are sent as multipart file parts (`input_image_N`), each under 512x512; confirmed live 2026-11-01 (3 references, about 11 s, good quality).
+- Untested alternative: `flux-2-dev`. Rejected: `flux-1-schnell` (no references, NSFW false positive).
 
 ---
 
@@ -308,19 +308,18 @@ Later, not MVP: filter outfit candidates by occasion before the AI step (example
 
 These are tests and checks, not undecided design (TDD section 7):
 1. Deployment spike (TDD 8): `GET /debug/slow` through the proxy; how Vercel runs NestJS + Node 24; proxy passes `Authorization` and `Set-Cookie`; Fluid Compute on. Then remove the endpoint.
-2. Outfit image cost: test `flux-2-klein-4b` and sizes smaller than 768 x 1024 (TDD 10).
+2. ~~Outfit image cost~~ (done 2026-11-01: `flux-2-klein-4b`, TDD 10). Still read the real neuron use on the Cloudflare dashboard.
 3. Background removal spike: quality, phone speed, 80 vs 40 MB model, Cloudinary CORS for the retry, COOP/COEP need (TDD 11).
 4. Cloudinary transformation cost on the free plan (TDD 12).
 5. Licences: `@imgly/background-removal` 1.7.0 and Black Forest Labs terms (TDD 13).
 6. Cloudflare quota error shape: record it on first hit, adjust the mapping (TDD 14).
 7. ~~Gemini model choice~~ (done 2026-11-01). Gemini free rate limits per model still unchecked (TDD 15).
 8. Login has no brute-force protection. Add a throttle before other people use the app.
-9. Cloudflare reference image format: confirm file parts work on the first live `POST /outfits/:id/image` (TDD 16). Needs the owner's Cloudflare keys.
 
 ## 13. Build order (from TDD section 8)
 
 1. ~~Fix `GET /debug/slow` (gate + cap)~~ (done), deploy both apps, run the deployment spike.
-2. Reduce outfit image cost (test `flux-2-klein-4b`, smaller output).
+2. ~~Reduce outfit image cost~~ (done: `flux-2-klein-4b`).
 3. Spike: browser background removal on sample photos.
 4. ~~Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format~~ (done).
 5. API areas in order: ~~meta, profile, uploads, Gemini provider, items, occasions, outfits (generate, reads), outfit image~~ (done 2026-11-01; outfit image not yet run live against Cloudflare). Status per feature: [memory/project-status.md](memory/project-status.md).
