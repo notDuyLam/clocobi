@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.13, DB v0.6, API v0.8 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-01. Documents: SRS v0.7, TDD v0.14, DB v0.6, API v0.9 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 

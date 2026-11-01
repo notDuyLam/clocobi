@@ -4,9 +4,9 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.7: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.13: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.14: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
-- API Design Document (API) v0.8: endpoints, errors, decisions AD1 to AD12
+- API Design Document (API) v0.9: endpoints, errors, decisions AD1 to AD12
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -275,6 +275,7 @@ Cloudflare Workers AI (images):
 - Endpoint: `https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/run/{model}`, header `Authorization: Bearer {API_TOKEN}` (token needs `Workers AI - Read` and `Workers AI - Edit`).
 - `flux-2-klein-9b`: multipart form data (use `fetch` + `FormData`, no SDK). Fields: `prompt`, `width`, `height` (256 to 1920), `seed`, `input_image_0` to `input_image_3`. `steps` fixed at 4. Output is a base64 string in `image`.
 - Model name, width, and height are configuration. Allowance resets at 00:00 UTC. The exact quota error shape is unverified.
+- Reference images are sent as multipart file parts (`input_image_N`); the docs do not show the format, so it is unverified until the first live call (TDD open item 16).
 - Untested alternatives: `flux-2-klein-4b` (reference-image support unverified), `flux-2-dev`. Rejected: `flux-1-schnell` (no references, NSFW false positive).
 
 ---
@@ -314,6 +315,7 @@ These are tests and checks, not undecided design (TDD section 7):
 6. Cloudflare quota error shape: record it on first hit, adjust the mapping (TDD 14).
 7. ~~Gemini model choice~~ (done 2026-11-01). Gemini free rate limits per model still unchecked (TDD 15).
 8. Login has no brute-force protection. Add a throttle before other people use the app.
+9. Cloudflare reference image format: confirm file parts work on the first live `POST /outfits/:id/image` (TDD 16). Needs the owner's Cloudflare keys.
 
 ## 13. Build order (from TDD section 8)
 
@@ -321,7 +323,7 @@ These are tests and checks, not undecided design (TDD section 7):
 2. Reduce outfit image cost (test `flux-2-klein-4b`, smaller output).
 3. Spike: browser background removal on sample photos.
 4. ~~Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format~~ (done).
-5. API areas in order: ~~meta, profile, uploads~~ (done), Gemini provider, items, occasions, outfits (generate), outfit image. Status per feature: [memory/project-status.md](memory/project-status.md).
+5. API areas in order: ~~meta, profile, uploads, Gemini provider, items, occasions, outfits (generate, reads), outfit image~~ (done 2026-11-01; outfit image not yet run live against Cloudflare). Status per feature: [memory/project-status.md](memory/project-status.md).
 6. Frontend from the owner's wireframe.
 
 ---
