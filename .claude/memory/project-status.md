@@ -27,7 +27,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 
 | # | Feature | Scope | Status |
 |---|---|---|---|
-| S3 | Background removal spike | Page running `@imgly/background-removal` on sample photos; model size, CORS, COOP/COEP (TDD open item 11). Owner tests on phone | todo |
+| S3 | Background removal spike | Page `/spike/bg-removal` running `@imgly/background-removal` on sample photos; model size, CORS, COOP/COEP (TDD open item 11). Owner tests on phone | built, owner to run |
 | 13 | App shell + auth | API client (in-memory token, single shared refresh, retry once), login page, logout, protected layout | todo |
 | 14 | Profile page | Form from `GET /meta` | todo |
 | 15 | Wardrobe | Category tabs with counts, Drafts, Liked view, item details, edit, delete, like | todo |
@@ -54,6 +54,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F10/11: Tested live 2026-11-01 (7 items, 4 combinations): first generate 3 outfits in about 13 s, all with blazer and watch for a walk outside (R10); second generate 1 outfit with `FEWER_THAN_REQUESTED`. `gemini-3.6-flash` returned HTTP 503 "high demand" twice before that (mapped to `AI_FAILED`, as designed).
 - F11: `DELETE /outfits/:id/items/:outfitItemId` uses `outfitItem.deleteMany` filtered through `outfit.userId` (DB D2). The outfit's `updatedAt` does not change when an optional item is removed.
 - F12: `IMAGE_GEN` → `CloudflareProvider` (in `AiModule`); `generateOutfitImage` returns the image bytes (`Buffer`). Reference images are sent as multipart file parts `input_image_0..3`: the Cloudflare model page does not document the format (checked 2026-11-01), so confirm on the first live call. Quota mapping: 429 or an error message matching daily/allowance/neuron/quota (open item 14). Prompt and reference order in `src/outfits/image-prompt.ts`; all garments are described in the prompt, the first 4 also go as references. References: `cleanPublicId` else original, through `c_limit,w_500,h_500`. Backend upload `CloudinaryService.upload()` and the reference transformation tested live 2026-11-01 (333x500 result). Profile missing at image time → "a person".
+- S3: `/spike/bg-removal` (temporary, delete after the spike) runs the real resize (`src/lib/image.ts`, reused by feature 16) then `removeBackground` with model `isnet_fp16` (medium, default) or `isnet_quint8` (small) and device `cpu`/`gpu`; logs sizes and times; a URL box does the CORS fetch the "retry clean image" flow needs. `SPIKE_ISOLATE=true` adds COOP/COEP on `/spike/*` (read at `next dev` start or at build time). Added `@imgly/background-removal` 1.7.0 and its peer `onnxruntime-web` 1.21.0 (exact), and Vitest to `apps/web`. Webpack production build passes. Not run in a browser by Claude.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
 
 ## Infrastructure status
@@ -65,10 +66,11 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
 | Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: 2 keys plus both model names (2026-11-01). Cloudflare keys not yet. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
-| Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. |
+| Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. On the owner's PC, stale shims in `%AppData%\npm` (`npm`, `npx`) point at a missing global npm and fail; `C:\Program Files\nodejs\npm.cmd` works. |
 
 ## Owner to-do
 
 - Spikes S1 (deploy) and S2 (image cost).
 - Cloudflare keys (`CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_IMAGE_MODEL`, `CF_IMAGE_WIDTH`, `CF_IMAGE_HEIGHT`) in `apps/api/.env`, then a live run of `POST /outfits/:id/image` (feature 12 code is done and mock-tested).
+- Run spike S3: `npm run dev -w apps/web`, open `/spike/bg-removal`, try both models on sample photos, then again with `SPIKE_ISOLATE=true`, then a Cloudinary URL in the URL box. A phone over plain `http://<pc-ip>` is not a secure context (no cross-origin isolation, likely no WebGPU), so test the phone on the Vercel deployment (S1) or an HTTPS tunnel.
 - Wireframe before frontend features.
