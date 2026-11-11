@@ -4,9 +4,9 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.9: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.17: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.18: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.7: tables, rules R1 to R10, decisions D1 to D10
-- API Design Document (API) v0.11: endpoints, errors, decisions AD1 to AD14
+- API Design Document (API) v0.12: endpoints, errors, decisions AD1 to AD14
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -43,7 +43,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 | Background removal | `@imgly/background-removal` (1.7.0), in the browser |
 | Hosting | Vercel Hobby (both Next.js and NestJS), personal use only |
 
-- Node: v24.22.2 LTS (npm 11.19.1). Node 26 is also LTS but not used: Vercel support unverified. Unverified: Vercel support for Node 24 and how Vercel runs NestJS (deployment spike, TDD open item 8). Install dependencies with `npm ci` so the lockfile is not rewritten.
+- Node: v24.22.2 LTS (npm 11.19.1), pinned for Vercel with `"engines": { "node": "24.x" }` in every `package.json` (Vercel offers 22/24/26, default 26). Vercel runs NestJS with zero configuration from `src/main.ts` as one function (docs, 2026-11-11). Still unverified until the deployment spike: decorator metadata and `prisma generate` in Vercel's build. First-deploy steps: TDD section 11. Install dependencies with `npm ci` so the lockfile is not rewritten.
 - Install latest stable versions. Verify before relying on any version number in this file.
 - Tooling (TDD 3): Vitest in both apps (AI/Cloudflare mocked), oxlint (api), ESLint Next config (web), Prettier at the root (single quotes, trailing commas), Conventional Commits, no CI.
 - Backend libraries (TDD 3): `zod` (validation via `ZodPipe`), `jose` (JWT), `@node-rs/argon2` (argon2id). Global `AuthGuard`; open routes use `@Public()`.
@@ -189,6 +189,7 @@ Other shape rules:
 | 400 | `INVALID_PUBLIC_ID` | `public_id` outside the user's folder for its purpose, used by another item, or (analysis) not found |
 | 401 | `UNAUTHENTICATED` | Missing, invalid, or expired token or cookie |
 | 401 | `INVALID_CREDENTIALS` | Wrong email or password |
+| 429 | `TOO_MANY_ATTEMPTS` | 5 failed logins from one client in 15 min (`Retry-After` header) |
 | 404 | `NOT_FOUND` | Missing, owned by someone else, not a UUID, or unknown route |
 | 404 | `PROFILE_NOT_FOUND` | No profile yet |
 | 409 | `ITEM_IN_USE` | Category change on an item in an outfit |
@@ -318,7 +319,7 @@ These are tests and checks, not undecided design (TDD section 7):
 5. Licences: `@imgly/background-removal` 1.7.0 and Black Forest Labs terms (TDD 13).
 6. Cloudflare quota error shape: record it on first hit, adjust the mapping (TDD 14).
 7. ~~Gemini model choice~~ (done 2026-11-01). Gemini free rate limits per model still unchecked (TDD 15).
-8. Login has no brute-force protection. Add a throttle before other people use the app.
+8. ~~Login brute-force protection~~ (done 2026-11-11: in-memory throttle per instance, `apps/api/src/auth/login-throttle.ts`). Check in the deployment spike which client address reaches the API.
 
 ## 13. Build order (from TDD section 8)
 

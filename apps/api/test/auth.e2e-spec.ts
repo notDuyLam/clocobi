@@ -88,6 +88,22 @@ describe('Auth (e2e)', () => {
     },
   );
 
+  it('blocks a client with 429 TOO_MANY_ATTEMPTS after 5 failed logins', async () => {
+    const from = (password: string) =>
+      login('admin@email.com', password).set(
+        'X-Forwarded-For',
+        '203.0.113.9, 10.0.0.1',
+      );
+    for (let i = 0; i < 5; i++) await from('nope').expect(401);
+    const res = await from('correct horse').expect(429);
+    expect(res.body.error.code).toBe('TOO_MANY_ATTEMPTS');
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    // Another client is not affected.
+    await login('admin@email.com', 'correct horse')
+      .set('X-Forwarded-For', '198.51.100.7')
+      .expect(200);
+  });
+
   it('login without a body returns 400 VALIDATION_FAILED', async () => {
     const res = await request(app.getHttpServer())
       .post('/auth/login')

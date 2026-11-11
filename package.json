@@ -3,6 +3,8 @@
   "private": true,
   "workspaces": [
     "apps/*"
-  ]
+  ],
+  "engines": {
+    "node": "24.x"
+  }
 }
-

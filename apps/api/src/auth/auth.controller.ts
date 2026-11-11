@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ApiError } from '../common/api-error.js';
 import { ZodPipe } from '../common/zod.pipe.js';
 import { PrismaService } from '../prisma.service.js';
+import { LoginThrottle } from './login-throttle.js';
 import { Public } from './public.decorator.js';
 import { ACCESS_TTL, REFRESH_TTL, signToken, verifyToken } from './tokens.js';
 
@@ -22,6 +23,16 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const throttle = new LoginThrottle();
+// Vercel and the Next.js proxy put the client first in x-forwarded-for. If the proxy hides it,
+// every login shares one key, which still caps guessing (and can lock the owner out for 15 min).
+const clientKey = (req: Request) =>
+  String(req.headers['x-forwarded-for'] ?? '')
+    .split(',')[0]
+    .trim() ||
+  req.ip ||
+  'unknown';
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly prisma: PrismaService) {}
@@ -31,18 +42,31 @@ export class AuthController {
   @HttpCode(200)
   async login(
     @Body(new ZodPipe(loginSchema)) body: z.infer<typeof loginSchema>,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const key = clientKey(req);
+    const wait = throttle.retryAfter(key);
+    if (wait) {
+      res.setHeader('Retry-After', String(wait));
+      throw new ApiError(
+        429,
+        'TOO_MANY_ATTEMPTS',
+        `Too many failed logins. Try again in ${Math.ceil(wait / 60)} minutes.`,
+      );
+    }
     const user = await this.prisma.user.findUnique({
       where: { email: body.email },
     });
     if (!user || !(await verify(user.passwordHash, body.password))) {
+      throttle.fail(key);
       throw new ApiError(
         401,
         'INVALID_CREDENTIALS',
         'Wrong email or password.',
       );
     }
+    throttle.succeed(key);
     return this.issue(user.id, res);
   }
 

@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-11. Documents: SRS v0.9, TDD v0.17, DB v0.7, API v0.11 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-11. Documents: SRS v0.9, TDD v0.18, DB v0.7, API v0.12 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -58,6 +58,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F12b: `generateSchema` (in `outfits.controller.ts`) uses `.prefault({})` so a missing body means no preference. Colors go into the Gemini data only when set. Migration written by hand (`prisma migrate dev` is interactive and fails in this shell), applied with `prisma migrate deploy`; diff shows no drift.
 - F13-18 (2026-11-11): client-only screens under `src/app/(app)/` (protected layout restores the token via refresh on load and owns the bottom nav). `lib/api.ts` (token, shared refresh, retry once, `uploadPhoto`), `lib/store.ts` (SWR cache), `lib/cloudinary.ts` (`thumb`, AD14), `lib/bg.ts` (worker, model `isnet_fp16` until S3). Wardrobe counts come from the `/items` list, not `/items/summary` (same numbers, one request fewer). Smoke test 2026-11-11 through `next start` + proxy: all pages 200, login sets the refresh cookie, refresh works, thumbnails 3 to 16 KB WebP, Cloudinary sends `Access-Control-Allow-Origin: *` (retry clean image works cross-origin).
 - Tailwind v4 runs through `@tailwindcss/postcss` 4.3.3 (`apps/web/postcss.config.mjs`), for both the webpack production build and Turbopack dev. The earlier `@tailwindcss/turbopack` loader was unwired (removed from `next.config.ts`) and never covered webpack, so no utility classes were generated until 2026-11-11.
+- Login throttle (2026-11-11): `LoginThrottle` in `src/auth/login-throttle.ts`, 5 failures per client per 15 min, then `429 TOO_MANY_ATTEMPTS` + `Retry-After`; key = first `X-Forwarded-For`, else `req.ip`. Unit + e2e tested.
 - S3: `/spike/bg-removal` (temporary, delete after the spike) runs the real resize (`src/lib/image.ts`, reused by feature 16) then `removeBackground` with model `isnet_fp16` (medium, default) or `isnet_quint8` (small) and device `cpu`/`gpu`; logs sizes and times; a URL box does the CORS fetch the "retry clean image" flow needs. `SPIKE_ISOLATE=true` adds COOP/COEP on `/spike/*` (read at `next dev` start or at build time). Added `@imgly/background-removal` 1.7.0 and its peer `onnxruntime-web` 1.21.0 (exact), and Vitest to `apps/web`. Webpack production build passes. Not run in a browser by Claude.
 - S2/F12 live test 2026-11-01: one `POST /outfits/:id/image` with `flux-2-klein-4b` (3 references, originals) returned 200 in about 11 s; good image. Multipart file parts confirmed. klein-4b is about 95 to 125 neurons per image by the listed prices vs about 1,500 for klein-9b; `CF_IMAGE_MODEL` switched in `.env` and `.env.example`. Test data left in the Neon `dev` branch: 3 items (black t-shirt, chinos, sneakers), occasion "Coffee with friends", 1 outfit with an image.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
@@ -68,9 +69,9 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 |---|---|
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
 | Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. `drop_profile_colors` applied on both (2026-11-11). `main` is migrated through `MAIN_DIRECT_URL` in `apps/api/.env` (direct, local only): set `DIRECT_URL` to it for the one `prisma migrate deploy` command. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
-| Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
+| Seed | `dev` and `main` seeded (2026-11-11; `main` through `MAIN_DIRECT_URL`, same `SEED_PASSWORD`). |
 | Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: 2 keys plus both model names (2026-11-01). Cloudflare keys set 2026-11-01. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
-| Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
+| Vercel | Not deployed (spike S1). Node pinned with `engines: 24.x`. Deploy steps in TDD section 11. |
 | Tooling | Node 24.22.2, npm 11.19.1. Install with `npm ci`. On the owner's PC, stale shims in `%AppData%\npm` (`npm`, `npx`) point at a missing global npm and fail; `C:\Program Files\nodejs\npm.cmd` works. |
 
 ## Owner to-do
