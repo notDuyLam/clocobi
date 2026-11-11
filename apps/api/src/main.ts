@@ -7,4 +7,5 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   await app.listen(process.env.PORT ?? 3000);
 }
-await bootstrap();
+// No top-level await: Vercel loads this file with require(), which rejects ESM with top-level await.
+void bootstrap();
