@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-11. Documents: SRS v0.9, TDD v0.16, DB v0.7, API v0.10 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-11. Documents: SRS v0.9, TDD v0.17, DB v0.7, API v0.11 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -24,17 +24,17 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | done |
 | 12b | Color preference per generate | Owner decision 2026-11-11: colors leave the profile; optional generate body `{ likedColors, avoidColors }` (groups or colors), soft prompt hint; `colorGroups` in `GET /meta`; migration `drop_profile_colors` | done |
 
-## Frontend (needs the owner's wireframe first)
+## Frontend (wireframe approved 2026-11-11; `built` = code done, build/lint/tests pass, smoke-tested over HTTP, not yet clicked through in a browser)
 
 | # | Feature | Scope | Status |
 |---|---|---|---|
 | S3 | Background removal spike | Page `/spike/bg-removal` running `@imgly/background-removal` on sample photos; model size, CORS, COOP/COEP (TDD open item 11). Owner tests on phone | built, owner to run |
-| 13 | App shell + auth | API client (in-memory token, single shared refresh, retry once), login page, logout, protected layout | todo |
-| 14 | Profile page | Form from `GET /meta` | todo |
-| 15 | Wardrobe | Category tabs with counts, Drafts, Liked view, item details, edit, delete, like | todo |
-| 16 | Add item | Camera/file, resize, signed upload, parallel analyze + background removal, Save / Save as draft, retry clean image | todo |
-| 17 | Occasions + outfits | Occasion CRUD with delete confirm, generate with loading/notice/errors, outfit list, collage, like, remove optional item, liked outfits | todo |
-| 18 | Outfit image | Generate/regenerate with loading and error + retry, incomplete label | todo |
+| 13 | App shell + auth | API client (in-memory token, single shared refresh, retry once), login page, logout, protected layout | built |
+| 14 | Profile page | Form from `GET /meta` | built |
+| 15 | Wardrobe | Category tabs with counts, Drafts, Liked view, item details, edit, delete, like | built |
+| 16 | Add item | Camera/file, resize, signed upload, parallel analyze + background removal, Save / Save as draft, retry clean image | built |
+| 17 | Occasions + outfits | Occasion CRUD with delete confirm, generate with loading/notice/errors, outfit list, collage, like, remove optional item, liked outfits | built |
+| 18 | Outfit image | Generate/regenerate with loading and error + retry, incomplete label | built |
 
 ## Decisions made by Claude (small, inside the documents)
 
@@ -56,6 +56,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F11: `DELETE /outfits/:id/items/:outfitItemId` uses `outfitItem.deleteMany` filtered through `outfit.userId` (DB D2). The outfit's `updatedAt` does not change when an optional item is removed.
 - F12: `IMAGE_GEN` → `CloudflareProvider` (in `AiModule`); `generateOutfitImage` returns the image bytes (`Buffer`). Reference images are sent as multipart file parts `input_image_0..3`: the Cloudflare model page does not document the format (checked 2026-11-01), so confirm on the first live call. Quota mapping: 429 or an error message matching daily/allowance/neuron/quota (open item 14). Prompt and reference order in `src/outfits/image-prompt.ts`; all garments are described in the prompt, the first 4 also go as references. References: `cleanPublicId` else original, through `c_limit,w_500,h_500`. Backend upload `CloudinaryService.upload()` and the reference transformation tested live 2026-11-01 (333x500 result). Profile missing at image time → "a person".
 - F12b: `generateSchema` (in `outfits.controller.ts`) uses `.prefault({})` so a missing body means no preference. Colors go into the Gemini data only when set. Migration written by hand (`prisma migrate dev` is interactive and fails in this shell), applied with `prisma migrate deploy`; diff shows no drift.
+- F13-18 (2026-11-11): client-only screens under `src/app/(app)/` (protected layout restores the token via refresh on load and owns the bottom nav). `lib/api.ts` (token, shared refresh, retry once, `uploadPhoto`), `lib/store.ts` (SWR cache), `lib/cloudinary.ts` (`thumb`, AD14), `lib/bg.ts` (worker, model `isnet_fp16` until S3). Wardrobe counts come from the `/items` list, not `/items/summary` (same numbers, one request fewer). Smoke test 2026-11-11 through `next start` + proxy: all pages 200, login sets the refresh cookie, refresh works, thumbnails 3 to 16 KB WebP, Cloudinary sends `Access-Control-Allow-Origin: *` (retry clean image works cross-origin).
 - S3: `/spike/bg-removal` (temporary, delete after the spike) runs the real resize (`src/lib/image.ts`, reused by feature 16) then `removeBackground` with model `isnet_fp16` (medium, default) or `isnet_quint8` (small) and device `cpu`/`gpu`; logs sizes and times; a URL box does the CORS fetch the "retry clean image" flow needs. `SPIKE_ISOLATE=true` adds COOP/COEP on `/spike/*` (read at `next dev` start or at build time). Added `@imgly/background-removal` 1.7.0 and its peer `onnxruntime-web` 1.21.0 (exact), and Vitest to `apps/web`. Webpack production build passes. Not run in a browser by Claude.
 - S2/F12 live test 2026-11-01: one `POST /outfits/:id/image` with `flux-2-klein-4b` (3 references, originals) returned 200 in about 11 s; good image. Multipart file parts confirmed. klein-4b is about 95 to 125 neurons per image by the listed prices vs about 1,500 for klein-9b; `CF_IMAGE_MODEL` switched in `.env` and `.env.example`. Test data left in the Neon `dev` branch: 3 items (black t-shirt, chinos, sneakers), occasion "Coffee with friends", 1 outfit with an image.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
@@ -76,4 +77,4 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - Spike S1 (deploy).
 - Read the real neuron use of the 2026-11-01 klein-4b image on the Cloudflare dashboard (Workers AI usage) and confirm it is about 100.
 - Run spike S3: `npm run dev -w apps/web`, open `/spike/bg-removal`, try both models on sample photos, then again with `SPIKE_ISOLATE=true`, then a Cloudinary URL in the URL box. A phone over plain `http://<pc-ip>` is not a secure context (no cross-origin isolation, likely no WebGPU), so test the phone on the Vercel deployment (S1) or an HTTPS tunnel.
-- Wireframe: v1 built 2026-11-11 (claude.ai artifact L4yvuNR8bQvFFPvkQw3a9n), owner reviewing.
+- Click through the app in a browser (`npm run start:dev -w apps/api` on port 3000, `npm run dev -w apps/web` on port 3001, open http://localhost:3001) and report anything off.

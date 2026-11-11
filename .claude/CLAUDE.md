@@ -4,9 +4,9 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.9: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.16: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.17: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.7: tables, rules R1 to R10, decisions D1 to D10
-- API Design Document (API) v0.10: endpoints, errors, decisions AD1 to AD13
+- API Design Document (API) v0.11: endpoints, errors, decisions AD1 to AD14
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -180,7 +180,7 @@ Other shape rules:
 - Outfit response: `id`, `occasionId`, `occasionName`, `stylingTips`, `liked`, `imageUrl` (null = show collage; may be set on an incomplete outfit), `isIncomplete` (derived), `createdAt`, `updatedAt`, `items[]` (ordered `TOP`, `BOTTOM`, `ONE_PIECE`, `OUTERWEAR`, `SHOES`, `ACCESSORY`). OutfitItem: `id`, `slot`, `optional` (true for `OUTERWEAR`, `ACCESSORY`), `item` (ItemSummary or `null` if deleted; slot kept).
 - Occasion response: `id`, `name`, `description`, `outfitCount`, `createdAt`, `updatedAt`. Names need not be unique (AD5). `DELETE /occasions/:id` cascades; the frontend confirms first using `outfitCount`.
 - Likes are `PATCH` fields. No like/unlike endpoints (AD6).
-- Display URLs carry no Cloudinary transformations (saves credits). Only AI reference images use a size-limiting transformation.
+- Responses carry plain Cloudinary URLs. The frontend displays them through `c_limit,w_<px>,f_auto,q_auto` (`thumb()` in `apps/web/src/lib/cloudinary.ts`, AD14): cheaper and much faster than full-size. The backend uses a transformation only for AI reference images.
 
 ### Error codes
 | HTTP | Code | When |
@@ -295,7 +295,8 @@ Cloudflare Workers AI (images):
 - Liked items view includes drafts, visibly marked (for example blurred or with a "Draft" badge).
 - Outfit with `imageUrl` and `isIncomplete`: keep showing the image with the "incomplete" label; no "generate image" action.
 - Generate notices: show `notice.message` for `FEWER_THAN_REQUESTED`, `AI_RETURNED_FEWER`, `NO_NEW_COMBINATIONS`.
-- Screens follow the owner's wireframe (provided at implementation start).
+- Screens follow the owner's wireframe (claude.ai artifact L4yvuNR8bQvFFPvkQw3a9n, approved 2026-11-11).
+- Performance first (owner, 2026-11-11, TDD 6.1): no UI kit, icon font or animation library; system fonts; CSS animations on `transform`/`opacity` only, off under reduced motion; fixed aspect-ratio images with native lazy loading; heavy code (background removal) loaded on first use and run in a worker. Data through the small SWR cache in `apps/web/src/lib/store.ts` (`useQuery`, `setCached`, `invalidate`).
 
 ---
 
@@ -326,7 +327,7 @@ These are tests and checks, not undecided design (TDD section 7):
 3. Spike: browser background removal on sample photos.
 4. ~~Base setup: Prisma schema from the DB document, JWT auth with seeded account, Cloudinary signing, error format~~ (done).
 5. API areas in order: ~~meta, profile, uploads, Gemini provider, items, occasions, outfits (generate, reads), outfit image~~ (done 2026-11-01; outfit image not yet run live against Cloudflare). Status per feature: [memory/project-status.md](memory/project-status.md).
-6. Frontend from the owner's wireframe.
+6. ~~Frontend from the owner's wireframe~~ (built 2026-11-11, features 13 to 18; not yet clicked through in a browser).
 
 ---
 
