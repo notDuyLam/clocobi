@@ -4,7 +4,7 @@ Web app: the user registers clothes from photos, views them by category, and gen
 
 Source of truth (read before changing behaviour):
 - Software Requirements Specification (SRS) v0.9: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.18: stack, infrastructure, AI and image design
+- Technical Design Document (TDD) v0.19: stack, infrastructure, AI and image design
 - Database Design Document (DB) v0.7: tables, rules R1 to R10, decisions D1 to D10
 - API Design Document (API) v0.12: endpoints, errors, decisions AD1 to AD14
 
@@ -269,7 +269,7 @@ interface ImageGenProvider {
 
 Gemini (text and vision):
 - REST `generateContent` via `fetch`, key in `x-goog-api-key`, JSON output with a response schema; still validate the parsed result. The item photo is downloaded from Cloudinary and sent inline.
-- Models live in configuration. Chosen after a test (2026-11-01, TDD 4.1): `GEMINI_MODEL_TAG=gemini-3.5-flash-lite` (5/5 photos, about 3.5 s), `GEMINI_MODEL_RANK=gemini-3.6-flash` (best outfit choices, about 10 s). `gemini-3.8-flash` failed every call that day (503 or timeout). Per-model rate limits are not verified (see Google AI Studio).
+- Models live in configuration. Current (TDD 4.1): `GEMINI_MODEL_TAG=gemini-3.6-flash` (since 2026-11-11: the lite models returned 503 "high demand" on half the calls; about 5 s per photo), `GEMINI_MODEL_RANK=gemini-3.6-flash` (best outfit choices, about 10 s). `gemini-2.5-*` return 404 for new users. `gemini-3.8-flash` failed every call that day (503 or timeout). Per-model rate limits are not verified (see Google AI Studio).
 - Key rotation across keys from separate Google Cloud projects (quota is per project). No stored state: each request starts at a random key. Only 429 moves to the next key. All keys 429 → `AI_QUOTA_EXHAUSTED`. Any other error (5xx, network, bad response) → `AI_FAILED` immediately; timeout → `AI_TIMEOUT`.
 - Timeouts (configuration): `tagClothing` 30 s, `rankOutfits` 90 s, Cloudflare 60 s, each backend Cloudinary fetch or upload 15 s.
 - Gemini is never used for images (free tier not available for image models).
@@ -290,7 +290,7 @@ Cloudflare Workers AI (images):
 - Wardrobe: category tabs with counts from `GET /items/summary` (`COMPLETE` only). Separate Drafts section. Liked view.
 - Show a loading state for every AI action and an error with a retry on failure or timeout (NFR-004). `generate` and `image` are not idempotent: each call uses quota, so do not auto-retry.
 - Background removal downloads a model on first use (about 80 MB default, about 40 MB small). Show progress and handle failure (NFR-011).
-- When `cleanUrl` is null, show `originalUrl`.
+- When `cleanUrl` is null, show `originalUrl`. Clean images are shown on a white background in both themes (CSS only).
 - Outfit view: show the "optional" tag for `OUTERWEAR`/`ACCESSORY`, an "incomplete" label from `isIncomplete`, and the "missing shoes" style message when `item` is `null`. No remove option for required slots.
 - The refresh flow: on `401 UNAUTHENTICATED`, call `POST /auth/refresh` once, then retry the original request.
 - Liked items view includes drafts, visibly marked (for example blurred or with a "Draft" badge).

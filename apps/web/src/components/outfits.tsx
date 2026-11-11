@@ -31,7 +31,7 @@ export function Collage({ outfit, size = 300 }: { outfit: Outfit; size?: number 
   return (
     <div className="grid aspect-[3/4] grid-cols-2 gap-0.5 bg-line">
       {photos.map(({ id, item }) => (
-        <Photo key={id} src={itemImage(item!)} alt={itemName(item!)} size={size} contain={!!item!.cleanUrl} className={`bg-bg ${photos.length === 3 && id === photos[2].id ? 'col-span-2' : ''} ${photos.length <= 2 ? 'row-span-2' : ''}`} />
+        <Photo key={id} src={itemImage(item!)} alt={itemName(item!)} size={size} contain={!!item!.cleanUrl} className={`${photos.length === 3 && id === photos[2].id ? 'col-span-2' : ''} ${photos.length <= 2 ? 'row-span-2' : ''}`} />
       ))}
     </div>
   );

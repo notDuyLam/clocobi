@@ -50,7 +50,8 @@ export function Photo({
 }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <div className={`overflow-hidden bg-surface ${className}`}>
+    // Clean (background-removed) images sit on white in both themes; photos on the surface tone.
+    <div className={`overflow-hidden ${contain ? 'bg-white' : 'bg-surface'} ${className}`}>
       <img
         src={size ? thumb(src, size) : src}
         alt={alt}
