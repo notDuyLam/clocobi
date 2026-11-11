@@ -150,6 +150,30 @@ describe('POST /occasions/:id/outfits/generate (e2e)', () => {
     expect((await generate(occ).expect(404)).body.error.code).toBe('NOT_FOUND');
   });
 
+  it('passes the color preference to the AI', async () => {
+    rankOutfits.mockResolvedValue([pick('c1')]);
+    await generate()
+      .send({ likedColors: ['dark', 'navy'], avoidColors: ['earth tones'] })
+      .expect(201);
+    expect(rankOutfits.mock.calls[0][0].colors).toEqual({
+      liked: ['dark', 'navy'],
+      avoid: ['earth tones'],
+    });
+  });
+
+  it.each([
+    ['unknown color', { likedColors: ['teal'] }, ['likedColors.0']],
+    ['repeated color', { avoidColors: ['dark', 'dark'] }, ['avoidColors']],
+    ['wrong case', { likedColors: ['Dark'] }, ['likedColors.0']],
+  ])('returns 400 VALIDATION_FAILED for %s', async (_, body, fields) => {
+    const res = await generate().send(body).expect(400);
+    expect(res.body.error).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: { fields },
+    });
+    expect(rankOutfits).not.toHaveBeenCalled();
+  });
+
   it('returns 422 PROFILE_REQUIRED without a profile', async () => {
     profile = null;
     expect((await generate().expect(422)).body.error.code).toBe(
@@ -178,6 +202,7 @@ describe('POST /occasions/:id/outfits/generate (e2e)', () => {
     expect(input).toMatchObject({
       occasion: { name: 'Work', description: 'Office' },
       profile: { clothingCategory: 'Menswear' },
+      colors: { liked: [], avoid: [] },
       count: 2,
       maxAccessories: 2,
     });

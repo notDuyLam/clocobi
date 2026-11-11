@@ -153,6 +153,7 @@ describe('GeminiProvider.rankOutfits', () => {
     const ranked = await new GeminiProvider().rankOutfits({
       occasion: { name: 'Work', description: 'Office' },
       profile: {} as never,
+      colors: { liked: [], avoid: [] },
       items: [
         { ...base, id: T },
         { ...base, id: S },
@@ -187,6 +188,38 @@ describe('GeminiProvider.rankOutfits', () => {
       .text;
     expect(prompt).toContain('"requiredItemIds":["i1","i2"]');
     expect(prompt).not.toContain(T);
+    expect(prompt).not.toContain('"colors"');
+  });
+
+  it('sends the color preference when one is given', async () => {
+    process.env.GEMINI_API_KEYS = 'k1';
+    process.env.GEMINI_MODEL_RANK = 'rank-model';
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        Response.json({
+          candidates: [{ content: { parts: [{ text: '{"outfits":[]}' }] } }],
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await new GeminiProvider().rankOutfits({
+      occasion: { name: 'Work', description: 'Office' },
+      profile: {} as never,
+      colors: { liked: ['dark', 'navy'], avoid: ['bright'] },
+      items: [],
+      candidates: [],
+      count: 1,
+      maxAccessories: 2,
+    });
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const prompt: string = JSON.parse(init.body as string).contents[0].parts[0]
+      .text;
+    expect(prompt).toContain(
+      '"colors":{"liked":["dark","navy"],"avoid":["bright"]}',
+    );
   });
 
   it('rejects a response without an outfits array', () => {

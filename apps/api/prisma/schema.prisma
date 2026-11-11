@@ -46,8 +46,6 @@ model StyleProfile {
   build            String?
   skinUndertone    String?
   preferredStyles  String[] @default([])
-  likedColors      String[] @default([])
-  dislikedColors   String[] @default([])
   fitPreference    String?
   freeNotes        String?
   createdAt        DateTime @default(now())

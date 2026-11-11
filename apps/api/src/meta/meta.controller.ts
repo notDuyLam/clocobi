@@ -12,6 +12,7 @@ export class MetaController {
       fit: v.FIT,
       pattern: v.PATTERN,
       colors: v.COLORS,
+      colorGroups: v.COLOR_GROUPS,
       clothingCategory: v.CLOTHING_CATEGORY,
       build: v.BUILD,
       skinUndertone: v.SKIN_UNDERTONE,

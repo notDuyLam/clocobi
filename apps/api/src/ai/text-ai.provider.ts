@@ -44,6 +44,8 @@ export interface RankInput {
   profile: Omit<StyleProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
   items: ItemForAi[];
   candidates: Candidate[];
+  // Per-request color preference (soft): groups or colors from GET /meta; empty = no preference.
+  colors: { liked: string[]; avoid: string[] };
   count: number;
   maxAccessories: number;
 }

@@ -106,6 +106,7 @@ Each candidate is a fixed set of required items. You never invent outfits or ite
 - Pick exactly ${input.count} different candidates, best first, that suit the occasion, the person's profile and each other (colors, formality, seasons).
 - For each, choose at most one outerwear id from that candidate's outerwearOptionIds, or null. When the occasion takes the person outside and an option exists, suggest one by default.
 - For each, choose 0 to ${input.maxAccessories} accessory ids from that candidate's accessoryOptionIds.
+- colors (if present) is this request's color preference: prefer outfits in the liked colors and away from the avoided ones, but still pick ${input.count} if nothing fits. Color groups: ${v.COLOR_GROUPS.join(', ')}.
 - stylingTips: English, at most 500 characters, how to wear the outfit and why it suits the occasion. Use metric units.
 Use only the ids given below.
 
@@ -165,6 +166,9 @@ export class GeminiProvider implements TextAiProvider {
     const data = {
       occasion: input.occasion,
       profile: input.profile,
+      ...(input.colors.liked.length || input.colors.avoid.length
+        ? { colors: input.colors }
+        : {}),
       items: input.items.map((it) => ({ ...it, id: a(it.id) })),
       candidates: input.candidates.map((c) => ({
         id: c.id,

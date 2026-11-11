@@ -100,8 +100,6 @@ describe('Profile (e2e)', () => {
       build: null,
       skinUndertone: null,
       preferredStyles: [],
-      likedColors: [],
-      dislikedColors: [],
       fitPreference: null,
       freeNotes: null,
       createdAt: '2026-11-01T00:00:00.000Z',
@@ -117,8 +115,6 @@ describe('Profile (e2e)', () => {
       build: 'Slim',
       skinUndertone: 'Warm',
       preferredStyles: [' Minimal ', 'streetwear'],
-      likedColors: ['navy', 'olive'],
-      dislikedColors: ['yellow'],
       fitPreference: 'Regular',
       freeNotes: ' No shorts to work ',
       id: 'ignored',
@@ -129,8 +125,6 @@ describe('Profile (e2e)', () => {
       build: 'Slim',
       skinUndertone: 'Warm',
       preferredStyles: ['minimal', 'streetwear'],
-      likedColors: ['navy', 'olive'],
-      dislikedColors: ['yellow'],
       fitPreference: 'Regular',
       freeNotes: 'No shorts to work',
     });
@@ -168,8 +162,6 @@ describe('Profile (e2e)', () => {
       { preferredStyles: ['Minimal', 'minimal'] },
       ['preferredStyles'],
     ],
-    ['repeated color', { likedColors: ['navy', 'navy'] }, ['likedColors']],
-    ['unknown color', { dislikedColors: ['teal'] }, ['dislikedColors.0']],
     ['notes too long', { freeNotes: 'x'.repeat(501) }, ['freeNotes']],
   ])('PUT with %s returns 400 VALIDATION_FAILED', async (_, patch, fields) => {
     const res = await put(patch ? { ...minimum, ...patch } : {}).expect(400);

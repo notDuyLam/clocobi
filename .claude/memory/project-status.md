@@ -1,6 +1,6 @@
 # Clocobi implementation plan and status
 
-Last updated: 2026-11-01. Documents: SRS v0.8, TDD v0.15, DB v0.6, API v0.9 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
+Last updated: 2026-11-11. Documents: SRS v0.9, TDD v0.16, DB v0.7, API v0.10 (in `E:/Hoc/duylaam-nexus/Project/Clocobi`, a separate git repo the owner commits).
 
 Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass, commit, `.claude/` updated if needed. Order follows TDD section 8. Status: `todo`, `doing`, `done`, `owner` (needs the owner's accounts or hardware; Claude cannot run it).
 
@@ -22,6 +22,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | 10 | Outfit generation | Candidate builder (R3, R9), `comboKey`, `rankOutfits` prompt, response repair (AD10), per-outfit transaction with P2002 skip, notices | done |
 | 11 | Outfit reads and edits | `GET /occasions/:id/outfits`, `GET /outfits`, `GET /outfits/:id`, `PATCH`, `DELETE`, remove optional item | done |
 | 12 | Outfit image | `ImageGenProvider` (Cloudflare), reference selection, prompt, error mapping, upload and replace | done |
+| 12b | Color preference per generate | Owner decision 2026-11-11: colors leave the profile; optional generate body `{ likedColors, avoidColors }` (groups or colors), soft prompt hint; `colorGroups` in `GET /meta`; migration `drop_profile_colors` | done |
 
 ## Frontend (needs the owner's wireframe first)
 
@@ -54,6 +55,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - F10/11: Tested live 2026-11-01 (7 items, 4 combinations): first generate 3 outfits in about 13 s, all with blazer and watch for a walk outside (R10); second generate 1 outfit with `FEWER_THAN_REQUESTED`. `gemini-3.6-flash` returned HTTP 503 "high demand" twice before that (mapped to `AI_FAILED`, as designed).
 - F11: `DELETE /outfits/:id/items/:outfitItemId` uses `outfitItem.deleteMany` filtered through `outfit.userId` (DB D2). The outfit's `updatedAt` does not change when an optional item is removed.
 - F12: `IMAGE_GEN` → `CloudflareProvider` (in `AiModule`); `generateOutfitImage` returns the image bytes (`Buffer`). Reference images are sent as multipart file parts `input_image_0..3`: the Cloudflare model page does not document the format (checked 2026-11-01), so confirm on the first live call. Quota mapping: 429 or an error message matching daily/allowance/neuron/quota (open item 14). Prompt and reference order in `src/outfits/image-prompt.ts`; all garments are described in the prompt, the first 4 also go as references. References: `cleanPublicId` else original, through `c_limit,w_500,h_500`. Backend upload `CloudinaryService.upload()` and the reference transformation tested live 2026-11-01 (333x500 result). Profile missing at image time → "a person".
+- F12b: `generateSchema` (in `outfits.controller.ts`) uses `.prefault({})` so a missing body means no preference. Colors go into the Gemini data only when set. Migration written by hand (`prisma migrate dev` is interactive and fails in this shell), applied with `prisma migrate deploy`; diff shows no drift.
 - S3: `/spike/bg-removal` (temporary, delete after the spike) runs the real resize (`src/lib/image.ts`, reused by feature 16) then `removeBackground` with model `isnet_fp16` (medium, default) or `isnet_quint8` (small) and device `cpu`/`gpu`; logs sizes and times; a URL box does the CORS fetch the "retry clean image" flow needs. `SPIKE_ISOLATE=true` adds COOP/COEP on `/spike/*` (read at `next dev` start or at build time). Added `@imgly/background-removal` 1.7.0 and its peer `onnxruntime-web` 1.21.0 (exact), and Vitest to `apps/web`. Webpack production build passes. Not run in a browser by Claude.
 - S2/F12 live test 2026-11-01: one `POST /outfits/:id/image` with `flux-2-klein-4b` (3 references, originals) returned 200 in about 11 s; good image. Multipart file parts confirmed. klein-4b is about 95 to 125 neurons per image by the listed prices vs about 1,500 for klein-9b; `CF_IMAGE_MODEL` switched in `.env` and `.env.example`. Test data left in the Neon `dev` branch: 3 items (black t-shirt, chinos, sneakers), occasion "Coffee with friends", 1 outfit with an image.
 - F3: Seed lives in `src/seed.ts` (compiled with the app) because Node cannot run the generated Prisma `.ts` client directly.
@@ -63,7 +65,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Item | Status |
 |---|---|
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
-| Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
+| Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. `drop_profile_colors` applied on `dev` only (2026-11-11); run `prisma migrate deploy` on `main` before deploying. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
 | Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: 2 keys plus both model names (2026-11-01). Cloudflare keys set 2026-11-01. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
@@ -74,4 +76,5 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - Spike S1 (deploy).
 - Read the real neuron use of the 2026-11-01 klein-4b image on the Cloudflare dashboard (Workers AI usage) and confirm it is about 100.
 - Run spike S3: `npm run dev -w apps/web`, open `/spike/bg-removal`, try both models on sample photos, then again with `SPIKE_ISOLATE=true`, then a Cloudinary URL in the URL box. A phone over plain `http://<pc-ip>` is not a secure context (no cross-origin isolation, likely no WebGPU), so test the phone on the Vercel deployment (S1) or an HTTPS tunnel.
-- Wireframe before frontend features.
+- Wireframe: v1 built 2026-11-11 (claude.ai artifact L4yvuNR8bQvFFPvkQw3a9n), owner reviewing.
+- Apply migration `drop_profile_colors` to Neon `main` (`prisma migrate deploy` with `DATABASE_URL`/`DIRECT_URL` for `main`).

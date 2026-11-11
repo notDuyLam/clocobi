@@ -19,8 +19,6 @@ const profileSchema = z.object({
     z.string().trim().toLowerCase().min(1).max(30),
     10,
   ).default([]),
-  likedColors: uniqueList(z.enum(v.COLORS)).default([]),
-  dislikedColors: uniqueList(z.enum(v.COLORS)).default([]),
   fitPreference: optionalEnum(v.FIT_PREFERENCE),
   freeNotes: optionalText(500),
 });
@@ -34,8 +32,6 @@ const select = {
   build: true,
   skinUndertone: true,
   preferredStyles: true,
-  likedColors: true,
-  dislikedColors: true,
   fitPreference: true,
   freeNotes: true,
   createdAt: true,

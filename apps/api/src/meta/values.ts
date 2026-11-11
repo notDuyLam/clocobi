@@ -35,6 +35,15 @@ export const COLORS = [
   'purple',
   'cream',
 ] as const;
+// Color groups for the per-request color preference of generate (API 4.6); a preference value is a group or a color.
+export const COLOR_GROUPS = [
+  'bright',
+  'dark',
+  'pastel',
+  'neutral',
+  'earth tones',
+] as const;
+export const COLOR_PREFERENCES = [...COLOR_GROUPS, ...COLORS] as const;
 export const CLOTHING_CATEGORY = ['Menswear', 'Womenswear', 'Unisex'] as const;
 export const BUILD = ['Slim', 'Average', 'Broad'] as const;
 export const SKIN_UNDERTONE = ['Warm', 'Cool', 'Neutral'] as const;

@@ -17,10 +17,11 @@ import { IMAGE_GEN, type ImageGenProvider } from '../ai/image-gen.provider.js';
 import { TEXT_AI, type TextAiProvider } from '../ai/text-ai.provider.js';
 import type { AuthedRequest } from '../auth/auth.guard.js';
 import { ApiError } from '../common/api-error.js';
-import { notFound, uuidOr404 } from '../common/fields.js';
+import { notFound, uniqueList, uuidOr404 } from '../common/fields.js';
 import { ZodPipe } from '../common/zod.pipe.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { ItemCategory } from '../generated/prisma/enums.js';
+import * as v from '../meta/values.js';
 import { PrismaService } from '../prisma.service.js';
 import { CloudinaryService } from '../uploads/cloudinary.service.js';
 import {
@@ -36,6 +37,12 @@ import {
   MAX_REFERENCES,
   outfitPrompt,
 } from './image-prompt.js';
+
+// Optional body of generate (API 4.6): a soft color preference for this request only. No body = none.
+const colorList = uniqueList(z.enum(v.COLOR_PREFERENCES)).default([]);
+export const generateSchema = z
+  .object({ likedColors: colorList, avoidColors: colorList })
+  .prefault({});
 
 // Cloudflare needs references smaller than 512x512 (TDD 4.3).
 const REFERENCE_TRANSFORM = 'c_limit,w_500,h_500';
@@ -280,7 +287,11 @@ export class OutfitsController {
 
   // Generate flow, API 4.6 steps 1 to 10.
   @Post('occasions/:id/outfits/generate')
-  async generate(@Req() req: AuthedRequest, @Param('id') id: string) {
+  async generate(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(generateSchema)) body: z.infer<typeof generateSchema>,
+  ) {
     const { userId } = req;
     const occasion = await this.findOccasion(userId, id);
 
@@ -358,6 +369,7 @@ export class OutfitsController {
     const ranked = await this.ai.rankOutfits({
       occasion: { name: occasion.name, description: occasion.description },
       profile,
+      colors: { liked: body.likedColors, avoid: body.avoidColors },
       items: items.filter((i) => used.has(i.id)),
       candidates,
       count,

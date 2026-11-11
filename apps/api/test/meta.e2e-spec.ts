@@ -36,6 +36,7 @@ describe('Meta (e2e)', () => {
       'fit',
       'pattern',
       'colors',
+      'colorGroups',
       'clothingCategory',
       'build',
       'skinUndertone',
@@ -50,6 +51,7 @@ describe('Meta (e2e)', () => {
       'ACCESSORY',
     ]);
     expect(res.body.colors).toHaveLength(16);
+    expect(res.body.colorGroups).toContain('earth tones');
     expect(res.body.formality).toContain('smart casual');
   });
 });

@@ -3,10 +3,10 @@
 Web app: the user registers clothes from photos, views them by category, and generates outfits per occasion with AI. MVP, single user (the developer). Free tiers only, no paid billing.
 
 Source of truth (read before changing behaviour):
-- Software Requirements Specification (SRS) v0.8: what the app does (FR-xxx, NFR-xxx)
-- Technical Design Document (TDD) v0.15: stack, infrastructure, AI and image design
-- Database Design Document (DB) v0.6: tables, rules R1 to R10, decisions D1 to D9
-- API Design Document (API) v0.9: endpoints, errors, decisions AD1 to AD12
+- Software Requirements Specification (SRS) v0.9: what the app does (FR-xxx, NFR-xxx)
+- Technical Design Document (TDD) v0.16: stack, infrastructure, AI and image design
+- Database Design Document (DB) v0.7: tables, rules R1 to R10, decisions D1 to D10
+- API Design Document (API) v0.10: endpoints, errors, decisions AD1 to AD13
 
 Current build plan and status: [memory/project-status.md](memory/project-status.md). Documents live in `E:/Hoc/duylaam-nexus/Project/Clocobi` (separate repo, owner commits).
 
@@ -133,6 +133,7 @@ After the DB delete, the backend deletes Cloudinary files best-effort (AD2). Fai
 | fit | `slim`, `regular`, `loose` |
 | pattern | `solid`, `striped`, `checked`, `printed`, `other` |
 | colors (16) | `black`, `white`, `gray`, `beige`, `brown`, `navy`, `blue`, `green`, `olive`, `red`, `burgundy`, `pink`, `orange`, `yellow`, `purple`, `cream` |
+| colorGroups | `bright`, `dark`, `pastel`, `neutral`, `earth tones` (generate color preference only) |
 | clothingCategory | `Menswear`, `Womenswear`, `Unisex` |
 | build | `Slim`, `Average`, `Broad` |
 | skinUndertone | `Warm`, `Cool`, `Neutral` |
@@ -162,7 +163,7 @@ Error body for every non-2xx:
 | Uploads | `POST /uploads/sign` body `purpose`: `ITEM_ORIGINAL` or `ITEM_CLEAN`. Returns `{ uploadUrl, cloudName, apiKey, timestamp, publicId, signature }`. `publicId` is `clocobi/{userId}/items/original/{uuid}` or `.../items/clean/{uuid}`; signature covers `public_id` + `timestamp` |
 | Items | `POST /items/analyze`, `POST /items`, `GET /items`, `GET /items/summary`, `GET /items/:id`, `PATCH /items/:id`, `DELETE /items/:id` |
 | Occasions | `GET /occasions`, `POST /occasions`, `PATCH /occasions/:id`, `DELETE /occasions/:id` |
-| Outfits | `POST /occasions/:id/outfits/generate`, `GET /occasions/:id/outfits`, `GET /outfits?liked=true`, `GET /outfits/:id`, `PATCH /outfits/:id` (`{ liked }`), `DELETE /outfits/:id`, `DELETE /outfits/:id/items/:outfitItemId`, `POST /outfits/:id/image` |
+| Outfits | `POST /occasions/:id/outfits/generate` (optional body `{ likedColors, avoidColors }`), `GET /occasions/:id/outfits`, `GET /outfits?liked=true`, `GET /outfits/:id`, `PATCH /outfits/:id` (`{ liked }`), `DELETE /outfits/:id`, `DELETE /outfits/:id/items/:outfitItemId`, `POST /outfits/:id/image` |
 | Meta / dev | `GET /meta`, `GET /health/db` (no auth; `200 { ok: true }` after `SELECT 1`, AD12), `GET /debug/slow?seconds=40` (no auth; `404` unless `DEBUG_ENDPOINTS=true`; `seconds` 1 to 290; temporary, AD11) |
 
 Item endpoint details:
@@ -219,6 +220,8 @@ Other shape rules:
 5. Nothing is saved until the user taps. "Save" needs R1 fields → `POST /items` `COMPLETE`. On the failure path, "Save as draft" → `POST /items` `DRAFT` (NFR-005, AD7). Leaving before saving leaves orphan uploads (accepted, AD2).
 
 ### 8.2 Generate outfits (`POST /occasions/:id/outfits/generate`)
+Optional body `{ likedColors, avoidColors }` (FR-058, AD13): arrays of `colorGroups` or `colors` values, default empty, no repeats, exact case. A soft preference for this request only: passed to `rankOutfits`, never filters candidates, never stored, does not affect `comboKey`. The profile has no colors (DB D10).
+
 1. No profile row → `422 PROFILE_REQUIRED`.
 2. Load the user's `COMPLETE` items only.
 3. No valid outfit possible → `422 MISSING_SLOTS` with `details.missing`. No `SHOES` → `SHOES`. With no `ONE_PIECE`: no `TOP` → `TOP`, no `BOTTOM` → `BOTTOM`.
@@ -253,7 +256,7 @@ interface TextAiProvider {
   tagClothing(image: { data: Buffer; mimeType: string }): Promise<ClothingTags>; // includes the AI note; caller downloads the photo
   rankOutfits(input: RankInput): Promise<RankedOutfit[]>;
 }
-// RankInput: occasion { name, description }, full profile, items (sent once), candidates
+// RankInput: occasion { name, description }, full profile, colors { liked, avoid } (per request), items (sent once), candidates
 //   { id, requiredItemIds, outerwearOptionIds, accessoryOptionIds }, count, maxAccessories (2).
 // RankedOutfit: { candidateId, outerwearId | null, accessoryIds, stylingTips }. Full shape: TDD 4.1.
 
