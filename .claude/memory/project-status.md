@@ -65,7 +65,7 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 | Item | Status |
 |---|---|
 | Neon branches | `main` (default, renamed from `production`) and `dev` (child). `apps/api/.env` points at `dev`. |
-| Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. `drop_profile_colors` applied on `dev` only (2026-11-11); run `prisma migrate deploy` on `main` before deploying. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
+| Migrations | `init`, `array_columns_not_null` applied on `main` and `dev`. `drop_profile_colors` applied on both (2026-11-11). `main` is migrated through `MAIN_DIRECT_URL` in `apps/api/.env` (direct, local only): set `DIRECT_URL` to it for the one `prisma migrate deploy` command. New migrations: `prisma migrate dev` on `dev`, then `prisma migrate deploy` on `main` by hand (TDD 11). |
 | Seed | `dev` seeded. `main` not seeded: run `npm run seed` with `DATABASE_URL` pointing at `main`. |
 | Cloudinary | Keys in `apps/api/.env` (2026-11-01). Gemini: 2 keys plus both model names (2026-11-01). Cloudflare keys set 2026-11-01. Sample photos for manual AI tests in `assests/test-images/` (git-ignored, internet images). |
 | Vercel | Not deployed (spike S1). Node version for Vercel not pinned yet. |
@@ -77,4 +77,3 @@ Feature-by-feature. Each feature ends with: tests pass, lint and type-check pass
 - Read the real neuron use of the 2026-11-01 klein-4b image on the Cloudflare dashboard (Workers AI usage) and confirm it is about 100.
 - Run spike S3: `npm run dev -w apps/web`, open `/spike/bg-removal`, try both models on sample photos, then again with `SPIKE_ISOLATE=true`, then a Cloudinary URL in the URL box. A phone over plain `http://<pc-ip>` is not a secure context (no cross-origin isolation, likely no WebGPU), so test the phone on the Vercel deployment (S1) or an HTTPS tunnel.
 - Wireframe: v1 built 2026-11-11 (claude.ai artifact L4yvuNR8bQvFFPvkQw3a9n), owner reviewing.
-- Apply migration `drop_profile_colors` to Neon `main` (`prisma migrate deploy` with `DATABASE_URL`/`DIRECT_URL` for `main`).

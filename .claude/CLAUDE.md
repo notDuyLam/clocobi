@@ -51,7 +51,7 @@ If code and these documents disagree, stop and ask. Do not silently change a con
 ### Prisma 7 notes
 - Connection URLs live in `prisma.config.ts`, not in `schema.prisma`. Driver adapter `@prisma/adapter-neon`. Generator `prisma-client`.
 - `DATABASE_URL` (pooled) for the app, `DIRECT_URL` for migrations.
-- Migrations: `prisma migrate dev` on the Neon `dev` branch; apply to `main` by hand with `prisma migrate deploy` before pushing. Never in the Vercel build.
+- Migrations: `prisma migrate dev` on the Neon `dev` branch; apply to `main` by hand with `prisma migrate deploy` before pushing, with `DIRECT_URL` set to `MAIN_DIRECT_URL` (in `apps/api/.env`, local only) for that one command. Never in the Vercel build.
 - Client generated at build time; `apps/api/src/generated/` is git-ignored (`postinstall` and `build` run `prisma generate`).
 - Physical names = DB document names (no `@map`). Ids: Prisma `uuid()`.
 
@@ -354,7 +354,7 @@ These are tests and checks, not undecided design (TDD section 7):
 
 5. **Test**: Run the code and verify that it works as expected. Test all edge cases and error conditions. Ensure that the code meets the requirements and constraints outlined in the documents.
 
-6. **Document**: Update the relevant documents (SRS, TDD, DB, API) to reflect any changes made during implementation. Ensure that the version tables in the documents are updated accordingly.
+6. **Document**: Update the relevant documents (SRS, TDD, DB, API, CLAUDE.md, ./claude/* files) to reflect any changes made during implementation. Ensure that the version tables in the documents are updated accordingly.
 
 ## 16. Notes
 
